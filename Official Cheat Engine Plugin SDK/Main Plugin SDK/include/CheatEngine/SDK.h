@@ -1,3 +1,4 @@
+// Original header:
 /*
  cepluginsdk.h
  Updated July 4, 2017
@@ -5,10 +6,42 @@
  v5.0.0
 */
 
+// Notes about what has been changed:
+/*
+    To remove dependency <windows.h> aliases such as int have been replaced with int, etc.
+
+    Lua headers and types have been wrapped with #ifdef CHEATENGINE_USE_LUA
+    which allows loading the SDK without automatically including CE's Lua headers.
+
+    > This is important if you want to use your own Lua headers, e.g. to bring your own Lua.
+
+    The changes below are C++ specific, as this version is exclusively being used from C++:
+
+    - Structures have been wrapped in the CheatEngine::SDK namespace.
+    - `typedef enum` has been replaced with `enum class`.
+    - `typedef struct` has been replaced with `struct`.
+    - `typedef` for function pointers has been replaced with `using`.
+
+    For clarity in the SDK.h, types such as `PLUGINTYPE0_RECORD` have been replaced
+    with `AddressListRecord` to make it more readable and C++-like.
+
+    Original type names have been preserved in the CheatEngine::SDK::Compat namespace.
+
+    To use the original type names:
+    - #include <CheatEngine/SDK/Compat.h>
+    - using namespace CheatEngine::SDK::Compat;
+
+    Note: `char*` have been converted to `const char*` so Compat is not 100% compatible.
+
+    If you want the original SDK.h, you can #include <CheatEngine/SDK/Official.h>
+*/
+
 #pragma once
 
 // TODO: remove:
 #include <windows.h>
+
+#include <cstdint>
 
 #ifdef CHEATENGINE_USE_LUA
     #include "lauxlib.h"  // IWYU pragma: keep
@@ -18,289 +51,317 @@
 
 #define CESDK_VERSION 6
 
-// typedef unsigned long long UINT_PTR
-// BOOL - int
-// PVOID - void*
-// DWORD and ULONG - unsigned long
+// typedef unsigned long long std::uintptr_t
+// int - int
+// void* - void*
+// std::uint32_t and ULONG - unsigned long
 
 namespace CheatEngine::SDK {
 
-    typedef enum {
-        ptAddressList            = 0,
-        ptMemoryView             = 1,
-        ptOnDebugEvent           = 2,
-        ptProcesswatcherEvent    = 3,
-        ptFunctionPointerchange  = 4,
-        ptMainMenu               = 5,
-        ptDisassemblerContext    = 6,
-        ptDisassemblerRenderLine = 7,
-        ptAutoAssembler          = 8
-    } PluginType;
+    enum class PluginType {
+        AddressList,
+        MemoryView,
+        OnDebugEvent,
+        ProcessWatcherEvent,
+        FunctionPointerChange,
+        MainMenu,
+        DisassemblerContext,
+        DisassemblerRenderLine,
+        AutoAssembler
+    };
+
     typedef enum { aaInitialize = 0, aaPhase1 = 1, aaPhase2 = 2, aaFinalize = 3 } AutoAssemblerPhase;
 
-    typedef struct _PluginVersion {
+    struct PluginVersion {
         unsigned int version;  // write here the minimum version this dll is compatible with (Current supported version:
                                // 1 and 2: this SDK only describes 2)
-        char* pluginname;  // make this point to a 0-terminated string (allocated memory or static addressin your dll,
-                           // not stack)
-    } PluginVersion, *PPluginVersion;
+        const char* pluginName;  // make this point to a 0-terminated string (allocated memory or static addressin your
+                                 // dll, not stack)
+    };
 
-    typedef struct _PLUGINTYPE0_RECORD {
-        char*    interpretedaddress;  // pointer to a 255 bytes long string (0 terminated)
-        UINT_PTR address;  // this is a read-only representaion of the address. Change interpretedaddress if you want to
-                           // change this
-        BOOL   ispointer;  // readonly
-        int    countoffsets;  // readonly
-        DWORD* offsets;       // array of dwords ranging from 0 to countoffsets-1 (readonly)
-        char*  description;   // pointer to a 255 bytes long string
-        char   valuetype;     // 0=byte, 1=word, 2=dword, 3=float, 4=double, 5=bit, 6=int64, 7=string
-        char   size;          // stringlength or bitlength;
-    } PLUGINTYPE0_RECORD, ADDRESSLIST_RECORD, *PPLUGINTYPE0_RECORD, *PADDRESSLIST_RECORD;
+    struct AddressListRecord {
+        char*          interpretedaddress;  // pointer to a 255 bytes long string (0 terminated)
+        std::uintptr_t address;    // this is a read-only representaion of the address. Change interpretedaddress if you
+                                   // want to change this
+        int            ispointer;  // readonly
+        int            countoffsets;  // readonly
+        std::uint32_t* offsets;       // array of dwords ranging from 0 to countoffsets-1 (readonly)
+        char*          description;   // pointer to a 255 bytes long string
+        char           valuetype;     // 0=byte, 1=word, 2=dword, 3=float, 4=double, 5=bit, 6=int64, 7=string
+        char           size;          // stringlength or bitlength;
+    };
 
-    // callback routines efinitions for registered plugin functions:
-    typedef BOOL(__stdcall* CEP_PLUGINTYPE0)(PPLUGINTYPE0_RECORD SelectedRecord);
-    typedef BOOL(__stdcall* CEP_PLUGINTYPE1)(
-        UINT_PTR* disassembleraddress, UINT_PTR* selected_disassembler_address, UINT_PTR* hexviewaddress
+    /* Registered Function Types */
+
+    // 0 = AddressList
+
+    using AddressListCallback = int(__stdcall*)(AddressListRecord* selectedRecord);
+
+    struct AddressListPluginInit {
+        char*               name;      // 0 terminated string describing the name for the user's menu item
+        AddressListCallback callback;  // pointer to a callback routine of the type 0 plugin
+    };
+
+    // 1 = MemoryView
+
+    using MemoryViewCallback = int(__stdcall*)(
+        std::uintptr_t* disassemblerAddress, std::uintptr_t* selectedDisassemblerAddress, std::uintptr_t* hexviewAddress
     );
+
+    struct MemoryViewPluginInit {
+        char*              name;      // 0 terminated string describing the name for the user's menu item
+        MemoryViewCallback callback;  // pointer to a callback routine of the type 1 plugin
+        char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to parse it
+                         // to a valid shortcut
+    };
+
+    // 2 = OnDebugEvent
+
+    // 3 = ProcessWatcherEvent
+
+    // 4 = FunctionPointerChange
+
+    // 5 = MainMenu
+
+    // 6 = DisassemblerContext
+
+    // 7 = DisassemblerRenderLine
+
+    // 8 = AutoAssembler
+
+    ///
+
     typedef int(__stdcall* CEP_PLUGINTYPE2)(LPDEBUG_EVENT DebugEvent);
-    typedef void(__stdcall* CEP_PLUGINTYPE3)(ULONG processid, ULONG peprocess, BOOL Created);
+    typedef void(__stdcall* CEP_PLUGINTYPE3)(ULONG processid, ULONG peprocess, int Created);
     typedef void(__stdcall* CEP_PLUGINTYPE4)(int reserved);
     typedef void(__stdcall* CEP_PLUGINTYPE5)(void);
-    typedef BOOL(__stdcall* CEP_PLUGINTYPE6ONPOPUP)(UINT_PTR selectedAddress, char** addressofname, BOOL* show);
-    typedef BOOL(__stdcall* CEP_PLUGINTYPE6)(UINT_PTR* selectedAddress);
+    typedef int(__stdcall* CEP_PLUGINTYPE6ONPOPUP)(std::uintptr_t selectedAddress, char** addressofname, int* show);
+    typedef int(__stdcall* CEP_PLUGINTYPE6)(std::uintptr_t* selectedAddress);
     typedef void(__stdcall* CEP_PLUGINTYPE7)(
-        UINT_PTR address, char** addressStringPointer, char** bytestringpointer, char** opcodestringpointer,
+        std::uintptr_t address, char** addressStringPointer, char** bytestringpointer, char** opcodestringpointer,
         char** specialstringpointer, ULONG* textcolor
     );
     typedef void(__stdcall* CEP_PLUGINTYPE8)(char** line, AutoAssemblerPhase phase, int id);
 
-    typedef struct _PLUGINTYPE0_INIT {
-        char*           name;             // 0 terminated string describing the name for the user's menu item
-        CEP_PLUGINTYPE0 callbackroutine;  // pointer to a callback routine of the type 0 plugin
-    } PLUGINTYPE0_INIT, ADDRESSLISTPLUGIN_INIT, *PPLUGINTYPE0_INIT, *PADDRESSLISTPLUGIN_INIT;
-
-    typedef struct _PLUGINTYPE1_INIT {
-        char*           name;             // 0 terminated string describing the name for the user's menu item
-        CEP_PLUGINTYPE1 callbackroutine;  // pointer to a callback routine of the type 1 plugin
-        char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to parse it
-                         // to a valid shortcut
-    } PLUGINTYPE1_INIT, MEMORYVIEWPLUGIN_INIT, *PPLUGINTYPE1_INIT, *PMEMORYVIEWPLUGIN_INIT;
+    /////
 
     typedef struct _PLUGINTYPE2_INIT {
-        CEP_PLUGINTYPE2 callbackroutine;  // pointer to a callback routine of the type 2 plugin
+        CEP_PLUGINTYPE2 callback;  // pointer to a callback routine of the type 2 plugin
     } PLUGINTYPE2_INIT, DEBUGEVENTPLUGIN_INIT, *PPLUGINTYPE2_INIT, *PDEBUGEVENTPLUGIN_INIT;
 
     typedef struct _PLUGINTYPE3_INIT {
-        CEP_PLUGINTYPE3 callbackroutine;  // pointer to a callback routine of the type 3 plugin
+        CEP_PLUGINTYPE3 callback;  // pointer to a callback routine of the type 3 plugin
     } PLUGINTYPE3_INIT, PROCESSWATCHERPLUGIN_INIT, *PPLUGINTYPE3_INIT, *PPROCESSWATCHERPLUGIN_INIT;
 
     typedef struct _PLUGINTYPE4_INIT {
-        CEP_PLUGINTYPE4 callbackroutine;  // pointer to a callback routine of the type 4 plugin
+        CEP_PLUGINTYPE4 callback;  // pointer to a callback routine of the type 4 plugin
     } PLUGINTYPE4_INIT, POINTERREASSIGNMENTPLUGIN_INIT, *PPLUGINTYPE4_INIT, *PPOINTERREASSIGNMENTPLUGIN_INIT;
 
     typedef struct _PLUGINTYPE5_INIT {
         char*           name;  // 0 terminated string describing the name for the user's menu item
-        CEP_PLUGINTYPE5 callbackroutine;
+        CEP_PLUGINTYPE5 callback;
         char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to parse it
                          // to a valid shortcut
     } PLUGINTYPE5_INIT, MAINMENUPLUGIN_INIT, *PPLUGINTYPE5_INIT, *PMAINMENUPLUGIN_INIT;
 
     typedef struct _PLUGINTYPE6_INIT {
         char*                  name;  // 0 terminated string describing the name for the user's menu item
-        CEP_PLUGINTYPE6        callbackroutine;
-        CEP_PLUGINTYPE6ONPOPUP callbackroutineOnPopup;
+        CEP_PLUGINTYPE6        callback;
+        CEP_PLUGINTYPE6ONPOPUP callbackOnPopup;
         char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to parse it
                          // to a valid shortcut
     } PLUGINTYPE6_INIT, DISASSEMBLERCONTEXT_INIT, *PPLUGINTYPE6_INIT, *PDISASSEMBLERCONTEXT_INIT;
 
     typedef struct _PLUGINTYPE7_INIT {
-        CEP_PLUGINTYPE7 callbackroutine;  // pointer to a callback routine of the type 7 plugin
+        CEP_PLUGINTYPE7 callback;  // pointer to a callback routine of the type 7 plugin
     } PLUGINTYPE7_INIT, DISASSEMBLERLINEPLUGIN_INIT, *PPLUGINTYPE7_INIT, *PDISASSEMBLERLINEPLUGIN_INIT;
 
     typedef struct _PLUGINTYPE8_INIT {
-        CEP_PLUGINTYPE8 callbackroutine;  // pointer to a callback routine of the type 8 plugin
+        CEP_PLUGINTYPE8 callback;  // pointer to a callback routine of the type 8 plugin
     } PLUGINTYPE8_INIT, AUTOASSEMBLERPLUGIN_INIT, *PPLUGINTYPE8_INIT, *PAUTOASSEMBLERPLUGIN_INIT;
 
     typedef struct _REGISTERMODIFICATIONINFO {
-        UINT_PTR address;  // addres to break on
-        BOOL     change_eax;
-        BOOL     change_ebx;
-        BOOL     change_ecx;
-        BOOL     change_edx;
-        BOOL     change_esi;
-        BOOL     change_edi;
-        BOOL     change_ebp;
-        BOOL     change_esp;
-        BOOL     change_eip;
+        std::uintptr_t address;  // addres to break on
+        int            change_eax;
+        int            change_ebx;
+        int            change_ecx;
+        int            change_edx;
+        int            change_esi;
+        int            change_edi;
+        int            change_ebp;
+        int            change_esp;
+        int            change_eip;
 #ifdef _AMD64_
-        BOOL change_r8;
-        BOOL change_r9;
-        BOOL change_r10;
-        BOOL change_r11;
-        BOOL change_r12;
-        BOOL change_r13;
-        BOOL change_r14;
-        BOOL change_r15;
+        int change_r8;
+        int change_r9;
+        int change_r10;
+        int change_r11;
+        int change_r12;
+        int change_r13;
+        int change_r14;
+        int change_r15;
 #endif
-        BOOL     change_cf;
-        BOOL     change_pf;
-        BOOL     change_af;
-        BOOL     change_zf;
-        BOOL     change_sf;
-        BOOL     change_of;
-        UINT_PTR new_eax;
-        UINT_PTR new_ebx;
-        UINT_PTR new_ecx;
-        UINT_PTR new_edx;
-        UINT_PTR new_esi;
-        UINT_PTR new_edi;
-        UINT_PTR new_ebp;
-        UINT_PTR new_esp;
-        UINT_PTR new_eip;
+        int            change_cf;
+        int            change_pf;
+        int            change_af;
+        int            change_zf;
+        int            change_sf;
+        int            change_of;
+        std::uintptr_t new_eax;
+        std::uintptr_t new_ebx;
+        std::uintptr_t new_ecx;
+        std::uintptr_t new_edx;
+        std::uintptr_t new_esi;
+        std::uintptr_t new_edi;
+        std::uintptr_t new_ebp;
+        std::uintptr_t new_esp;
+        std::uintptr_t new_eip;
 #ifdef _AMD64_
-        UINT_PTR new_r8;
-        UINT_PTR new_r9;
-        UINT_PTR new_r10;
-        UINT_PTR new_r11;
-        UINT_PTR new_r12;
-        UINT_PTR new_r13;
-        UINT_PTR new_r14;
-        UINT_PTR new_r15;
+        std::uintptr_t new_r8;
+        std::uintptr_t new_r9;
+        std::uintptr_t new_r10;
+        std::uintptr_t new_r11;
+        std::uintptr_t new_r12;
+        std::uintptr_t new_r13;
+        std::uintptr_t new_r14;
+        std::uintptr_t new_r15;
 #endif
 
-        BOOL new_cf;
-        BOOL new_pf;
-        BOOL new_af;
-        BOOL new_zf;
-        BOOL new_sf;
-        BOOL new_of;
+        int new_cf;
+        int new_pf;
+        int new_af;
+        int new_zf;
+        int new_sf;
+        int new_of;
     } REGISTERMODIFICATIONINFO, *PREGISTERMODIFICATIONINFO;
 
     // the __stdcall stuff isn't really needed since I've set compiler options to force stdcall, but this makes it clear
     // that stdcall is used to the reader
     typedef void(__stdcall* CEP_SHOWMESSAGE)(char* message);
-    typedef int(__stdcall* CEP_REGISTERFUNCTION)(int pluginid, PluginType functiontype, PVOID init);
-    typedef BOOL(__stdcall* CEP_UNREGISTERFUNCTION)(int pluginid, int functionid);
+    typedef int(__stdcall* CEP_REGISTERFUNCTION)(int pluginid, PluginType functiontype, void* init);
+    typedef int(__stdcall* CEP_UNREGISTERFUNCTION)(int pluginid, int functionid);
     typedef HANDLE(__stdcall* CEP_GETMAINWINDOWHANDLE)(void);
-    typedef BOOL(__stdcall* CEP_AUTOASSEMBLE)(char* script);
-    typedef BOOL(__stdcall* CEP_ASSEMBLER)(
-        UINT_PTR address, char* instruction, BYTE* output, int maxlength, int* returnedsize
+    typedef int(__stdcall* CEP_AUTOASSEMBLE)(char* script);
+    typedef int(__stdcall* CEP_ASSEMBLER)(
+        std::uintptr_t address, char* instruction, BYTE* output, int maxlength, int* returnedsize
     );
-    typedef BOOL(__stdcall* CEP_DISASSEMBLER)(UINT_PTR address, char* output, int maxsize);
-    typedef BOOL(__stdcall* CEP_CHANGEREGATADDRESS)(UINT_PTR address, PREGISTERMODIFICATIONINFO changereg);
-    typedef BOOL(__stdcall* CEP_INJECTDLL)(char* dllname, char* functiontocall);
-    typedef int(__stdcall* CEP_FREEZEMEM)(UINT_PTR address, int size);
-    typedef BOOL(__stdcall* CEP_UNFREEZEMEM)(int freezeID);
-    typedef BOOL(__stdcall* CEP_FIXMEM)(void);
-    typedef BOOL(__stdcall* CEP_PROCESSLIST)(char* listbuffer, int listsize);
-    typedef BOOL(__stdcall* CEP_RELOADSETTINGS)(void);
-    typedef UINT_PTR(__stdcall* CEP_GETADDRESSFROMPOINTER)(UINT_PTR baseaddress, int offsetcount, int* offsets);
-    typedef BOOL(__stdcall* CEP_GENERATEAPIHOOKSCRIPT)(
+    typedef int(__stdcall* CEP_DISASSEMBLER)(std::uintptr_t address, char* output, int maxsize);
+    typedef int(__stdcall* CEP_CHANGEREGATADDRESS)(std::uintptr_t address, PREGISTERMODIFICATIONINFO changereg);
+    typedef int(__stdcall* CEP_INJECTDLL)(char* dllname, char* functiontocall);
+    typedef int(__stdcall* CEP_FREEZEMEM)(std::uintptr_t address, int size);
+    typedef int(__stdcall* CEP_UNFREEZEMEM)(int freezeID);
+    typedef int(__stdcall* CEP_FIXMEM)(void);
+    typedef int(__stdcall* CEP_PROCESSLIST)(char* listbuffer, int listsize);
+    typedef int(__stdcall* CEP_RELOADSETTINGS)(void);
+    typedef std::uintptr_t(__stdcall* CEP_GETADDRESSFROMPOINTER)(
+        std::uintptr_t baseaddress, int offsetcount, int* offsets
+    );
+    typedef int(__stdcall* CEP_GENERATEAPIHOOKSCRIPT)(
         char* address, char* addresstojumpto, char* addresstogetnewcalladdress, char* script, int maxscriptsize
     );
-    typedef BOOL(__stdcall* CEP_ADDRESSTONAME)(UINT_PTR address, char* name, int maxnamesize);
-    typedef BOOL(__stdcall* CEP_NAMETOADDRESS)(char* name, UINT_PTR* address);
+    typedef int(__stdcall* CEP_ADDRESSTONAME)(std::uintptr_t address, char* name, int maxnamesize);
+    typedef int(__stdcall* CEP_NAMETOADDRESS)(char* name, std::uintptr_t* address);
 
-    typedef VOID(__stdcall* CEP_LOADDBK32)(void);
-    typedef BOOL(__stdcall* CEP_LOADDBVMIFNEEDED)(void);
-    typedef DWORD(__stdcall* CEP_PREVIOUSOPCODE)(UINT_PTR address);
-    typedef DWORD(__stdcall* CEP_NEXTOPCODE)(UINT_PTR address);
-    typedef BOOL(__stdcall* CEP_LOADMODULE)(char* modulepath, char* exportlist, int* maxsize);
-    typedef BOOL(__stdcall* CEP_DISASSEMBLEEX)(UINT_PTR address, char* output, int maxsize);
-    typedef VOID(__stdcall* CEP_AA_ADDCOMMAND)(char* command);
-    typedef VOID(__stdcall* CEP_AA_DELCOMMAND)(char* command);
+    typedef void(__stdcall* CEP_LOADDBK32)(void);
+    typedef int(__stdcall* CEP_LOADDBVMIFNEEDED)(void);
+    typedef std::uint32_t(__stdcall* CEP_PREVIOUSOPCODE)(std::uintptr_t address);
+    typedef std::uint32_t(__stdcall* CEP_NEXTOPCODE)(std::uintptr_t address);
+    typedef int(__stdcall* CEP_LOADMODULE)(char* modulepath, char* exportlist, int* maxsize);
+    typedef int(__stdcall* CEP_DISASSEMBLEEX)(std::uintptr_t address, char* output, int maxsize);
+    typedef void(__stdcall* CEP_AA_ADDCOMMAND)(char* command);
+    typedef void(__stdcall* CEP_AA_DELCOMMAND)(char* command);
 
-    typedef PVOID(__stdcall* CEP_CREATETABLEENTRY)(void);
-    typedef PVOID(__stdcall* CEP_GETTABLEENTRY)(char* description);
-    typedef BOOL(__stdcall* CEP_MEMREC_SETDESCRIPTION)(PVOID memrec, char* description);
-    typedef PCHAR(__stdcall* CEP_MEMREC_GETDESCRIPTION)(PVOID memrec);
-    typedef BOOL(__stdcall* CEP_MEMREC_GETADDRESS)(
-        PVOID memrec, UINT_PTR* address, DWORD* offsets, int maxoffsets, int* neededOffsets
+    typedef void*(__stdcall* CEP_CREATETABLEENTRY)(void);
+    typedef void*(__stdcall* CEP_GETTABLEENTRY)(char* description);
+    typedef int(__stdcall* CEP_MEMREC_SETDESCRIPTION)(void* memrec, char* description);
+    typedef PCHAR(__stdcall* CEP_MEMREC_GETDESCRIPTION)(void* memrec);
+    typedef int(__stdcall* CEP_MEMREC_GETADDRESS)(
+        void* memrec, std::uintptr_t* address, std::uint32_t* offsets, int maxoffsets, int* neededOffsets
     );
-    typedef BOOL(__stdcall* CEP_MEMREC_SETADDRESS)(PVOID memrec, char* address, DWORD* offsets, int offsetcount);
-    typedef int(__stdcall* CEP_MEMREC_GETTYPE)(PVOID memrec);
-    typedef BOOL(__stdcall* CEP_MEMREC_SETTYPE)(PVOID memrec, int vtype);
-    typedef BOOL(__stdcall* CEP_MEMREC_GETVALUETYPE)(PVOID memrec, char* value, int maxsize);
-    typedef BOOL(__stdcall* CEP_MEMREC_SETVALUETYPE)(PVOID memrec, char* value);
-    typedef char*(__stdcall* CEP_MEMREC_GETSCRIPT)(PVOID memrec);
-    typedef BOOL(__stdcall* CEP_MEMREC_SETSCRIPT)(PVOID memrec, char* script);
-    typedef BOOL(__stdcall* CEP_MEMREC_ISFROZEN)(PVOID memrec);
-    typedef BOOL(__stdcall* CEP_MEMREC_FREEZE)(PVOID memrec, int direction);
-    typedef BOOL(__stdcall* CEP_MEMREC_UNFREEZE)(PVOID memrec);
-    typedef BOOL(__stdcall* CEP_MEMREC_SETCOLOR)(PVOID memrec, DWORD color);
-    typedef BOOL(__stdcall* CEP_MEMREC_APPENDTOENTRY)(PVOID memrec1, PVOID memrec2);
-    typedef BOOL(__stdcall* CEP_MEMREC_DELETE)(PVOID memrec);
+    typedef int(__stdcall* CEP_MEMREC_SETADDRESS)(void* memrec, char* address, std::uint32_t* offsets, int offsetcount);
+    typedef int(__stdcall* CEP_MEMREC_GETTYPE)(void* memrec);
+    typedef int(__stdcall* CEP_MEMREC_SETTYPE)(void* memrec, int vtype);
+    typedef int(__stdcall* CEP_MEMREC_GETVALUETYPE)(void* memrec, char* value, int maxsize);
+    typedef int(__stdcall* CEP_MEMREC_SETVALUETYPE)(void* memrec, char* value);
+    typedef char*(__stdcall* CEP_MEMREC_GETSCRIPT)(void* memrec);
+    typedef int(__stdcall* CEP_MEMREC_SETSCRIPT)(void* memrec, char* script);
+    typedef int(__stdcall* CEP_MEMREC_ISFROZEN)(void* memrec);
+    typedef int(__stdcall* CEP_MEMREC_FREEZE)(void* memrec, int direction);
+    typedef int(__stdcall* CEP_MEMREC_UNFREEZE)(void* memrec);
+    typedef int(__stdcall* CEP_MEMREC_SETCOLOR)(void* memrec, std::uint32_t color);
+    typedef int(__stdcall* CEP_MEMREC_APPENDTOENTRY)(void* memrec1, void* memrec2);
+    typedef int(__stdcall* CEP_MEMREC_DELETE)(void* memrec);
 
-    typedef DWORD(__stdcall* CEP_GETPROCESSIDFROMPROCESSNAME)(char* name);
-    typedef DWORD(__stdcall* CEP_OPENPROCESS)(DWORD pid);
-    typedef DWORD(__stdcall* CEP_DEBUGPROCESS)(int debuggerinterface);
-    typedef VOID(__stdcall* CEP_PAUSE)(void);
-    typedef VOID(__stdcall* CEP_UNPAUSE)(void);
-    typedef BOOL(__stdcall* CEP_DEBUG_SETBREAKPOINT)(UINT_PTR address, int size, int trigger);
-    typedef BOOL(__stdcall* CEP_DEBUG_REMOVEBREAKPOINT)(UINT_PTR address);
-    typedef BOOL(__stdcall* CEP_DEBUG_CONTINUEFROMBREAKPOINT)(int continueoption);
+    typedef std::uint32_t(__stdcall* CEP_GETPROCESSIDFROMPROCESSNAME)(char* name);
+    typedef std::uint32_t(__stdcall* CEP_OPENPROCESS)(std::uint32_t pid);
+    typedef std::uint32_t(__stdcall* CEP_DEBUGPROCESS)(int debuggerinterface);
+    typedef void(__stdcall* CEP_PAUSE)(void);
+    typedef void(__stdcall* CEP_UNPAUSE)(void);
+    typedef int(__stdcall* CEP_DEBUG_SETBREAKPOINT)(std::uintptr_t address, int size, int trigger);
+    typedef int(__stdcall* CEP_DEBUG_REMOVEBREAKPOINT)(std::uintptr_t address);
+    typedef int(__stdcall* CEP_DEBUG_CONTINUEFROMBREAKPOINT)(int continueoption);
 
-    typedef VOID(__stdcall* CEP_CLOSECE)(void);
-    typedef VOID(__stdcall* CEP_HIDEALLCEWINDOWS)(void);
-    typedef VOID(__stdcall* CEP_UNHIDEMAINCEWINDOW)(void);
+    typedef void(__stdcall* CEP_CLOSECE)(void);
+    typedef void(__stdcall* CEP_HIDEALLCEWINDOWS)(void);
+    typedef void(__stdcall* CEP_UNHIDEMAINCEWINDOW)(void);
 
-    typedef PVOID(__stdcall* CEP_CREATEFORM)(void);
-    typedef void(__stdcall* CEP_FORM_CENTERSCREEN)(PVOID form);
-    typedef void(__stdcall* CEP_FORM_HIDE)(PVOID form);
-    typedef void(__stdcall* CEP_FORM_SHOW)(PVOID form);
-    typedef void(__stdcall* CEP_FORM_ONCLOSE)(PVOID form, PVOID function);
+    typedef void*(__stdcall* CEP_CREATEFORM)(void);
+    typedef void(__stdcall* CEP_FORM_CENTERSCREEN)(void* form);
+    typedef void(__stdcall* CEP_FORM_HIDE)(void* form);
+    typedef void(__stdcall* CEP_FORM_SHOW)(void* form);
+    typedef void(__stdcall* CEP_FORM_ONCLOSE)(void* form, void* function);
 
-    typedef PVOID(__stdcall* CEP_CREATEPANEL)(PVOID owner);
-    typedef PVOID(__stdcall* CEP_CREATEGROUPBOX)(PVOID owner);
-    typedef PVOID(__stdcall* CEP_CREATEBUTTON)(PVOID owner);
-    typedef PVOID(__stdcall* CEP_CREATEIMAGE)(PVOID owner);
+    typedef void*(__stdcall* CEP_CREATEPANEL)(void* owner);
+    typedef void*(__stdcall* CEP_CREATEGROUPBOX)(void* owner);
+    typedef void*(__stdcall* CEP_CREATEBUTTON)(void* owner);
+    typedef void*(__stdcall* CEP_CREATEIMAGE)(void* owner);
 
-    typedef BOOL(__stdcall* CEP_IMAGE_LOADIMAGEFROMFILE)(PVOID image, char* filename);
-    typedef VOID(__stdcall* CEP_IMAGE_TRANSPARENT)(PVOID image, BOOL transparent);
-    typedef VOID(__stdcall* CEP_IMAGE_STRETCH)(PVOID image, BOOL stretch);
+    typedef int(__stdcall* CEP_IMAGE_LOADIMAGEFROMFILE)(void* image, char* filename);
+    typedef void(__stdcall* CEP_IMAGE_TRANSPARENT)(void* image, int transparent);
+    typedef void(__stdcall* CEP_IMAGE_STRETCH)(void* image, int stretch);
 
-    typedef PVOID(__stdcall* CEP_CREATELABEL)(PVOID owner);
-    typedef PVOID(__stdcall* CEP_CREATEEDIT)(PVOID owner);
-    typedef PVOID(__stdcall* CEP_CREATEMEMO)(PVOID owner);
-    typedef PVOID(__stdcall* CEP_CREATETIMER)(PVOID owner);
+    typedef void*(__stdcall* CEP_CREATELABEL)(void* owner);
+    typedef void*(__stdcall* CEP_CREATEEDIT)(void* owner);
+    typedef void*(__stdcall* CEP_CREATEMEMO)(void* owner);
+    typedef void*(__stdcall* CEP_CREATETIMER)(void* owner);
 
-    typedef VOID(__stdcall* CEP_TIMER_SETINTERVAL)(PVOID timer, int interval);
-    typedef VOID(__stdcall* CEP_TIMER_ONTIMER)(PVOID timer, PVOID function);
+    typedef void(__stdcall* CEP_TIMER_SETINTERVAL)(void* timer, int interval);
+    typedef void(__stdcall* CEP_TIMER_ONTIMER)(void* timer, void* function);
 
-    typedef VOID(__stdcall* CEP_CONTROL_SETCAPTION)(PVOID control, char* caption);
-    typedef BOOL(__stdcall* CEP_CONTROL_GETCAPTION)(PVOID control, char* caption, int maxsize);
+    typedef void(__stdcall* CEP_CONTROL_SETCAPTION)(void* control, char* caption);
+    typedef int(__stdcall* CEP_CONTROL_GETCAPTION)(void* control, char* caption, int maxsize);
 
-    typedef VOID(__stdcall* CEP_CONTROL_SETPOSITION)(PVOID control, int x, int y);
-    typedef int(__stdcall* CEP_CONTROL_GETX)(PVOID control);
-    typedef int(__stdcall* CEP_CONTROL_GETY)(PVOID control);
+    typedef void(__stdcall* CEP_CONTROL_SETPOSITION)(void* control, int x, int y);
+    typedef int(__stdcall* CEP_CONTROL_GETX)(void* control);
+    typedef int(__stdcall* CEP_CONTROL_GETY)(void* control);
 
-    typedef VOID(__stdcall* CEP_CONTROL_SETSIZE)(PVOID control, int width, int height);
-    typedef int(__stdcall* CEP_CONTROL_GETWIDTH)(PVOID control);
-    typedef int(__stdcall* CEP_CONTROL_GETHEIGHT)(PVOID control);
+    typedef void(__stdcall* CEP_CONTROL_SETSIZE)(void* control, int width, int height);
+    typedef int(__stdcall* CEP_CONTROL_GETWIDTH)(void* control);
+    typedef int(__stdcall* CEP_CONTROL_GETHEIGHT)(void* control);
 
-    typedef VOID(__stdcall* CEP_CONTROL_SETALIGN)(PVOID control, int align);
-    typedef VOID(__stdcall* CEP_CONTROL_ONCLICK)(PVOID control, PVOID function);
+    typedef void(__stdcall* CEP_CONTROL_SETALIGN)(void* control, int align);
+    typedef void(__stdcall* CEP_CONTROL_ONCLICK)(void* control, void* function);
 
-    typedef VOID(__stdcall* CEP_OBJECT_DESTROY)(PVOID object);
+    typedef void(__stdcall* CEP_OBJECT_DESTROY)(void* object);
 
     typedef int(__stdcall* CEP_MESSAGEDIALOG)(char* massage, int messagetype, int buttoncombination);
-    typedef BOOL(__stdcall* CEP_SPEEDHACK_SETSPEED)(float speed);
+    typedef int(__stdcall* CEP_SPEEDHACK_SETSPEED)(float speed);
 #ifdef CHEATENGINE_USE_LUA
     typedef lua_State*(__fastcall* CEP_GETLUASTATE)();
 #else
-    typedef PVOID(__fastcall* CEP_GETLUASTATE)();
+    typedef void*(__fastcall* CEP_GETLUASTATE)();
 #endif
 
-    typedef BOOL(__stdcall** CEP_READPROCESSMEMORY)(
-        HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, SIZE_T* lpNumberOfBytesRead
+    typedef int(__stdcall** CEP_READPROCESSMEMORY)(
+        HANDLE hProcess, const void* lpBaseAddress, void* lpBuffer, SIZE_T nSize, SIZE_T* lpNumberOfBytesRead
     );
 
     /*
     function ce_messageDialog(message: pchar; messagetype: integer; buttoncombination: integer): integer; stdcall;
-    function ce_speedhack_setSpeed(speed: single): BOOL; stdcall;
+    function ce_speedhack_setSpeed(speed: single): int; stdcall;
     */
 
-    typedef struct _ExportedFunctions {
+    struct ExportedFunctions {
         int                    sizeofExportedFunctions;
         CEP_SHOWMESSAGE        ShowMessage;          // Pointer to the ce showmessage function
         CEP_REGISTERFUNCTION   RegisterFunction;     // Use this to register a specific type of plugin
@@ -327,75 +388,75 @@ namespace CheatEngine::SDK {
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         CEP_READPROCESSMEMORY ReadProcessMemory;  // pointer to the pointer of ReadProcessMemory (Change it to hook that
                                                   // api, or use it yourself)
-        PVOID WriteProcessMemory;  // pointer to the pointer of WriteProcessMemory (Change it to hook that api, or use
+        void* WriteProcessMemory;  // pointer to the pointer of WriteProcessMemory (Change it to hook that api, or use
                                    // it yourself)
-        PVOID GetThreadContext;    //   ...
-        PVOID SetThreadContext;    //   ...
-        PVOID SuspendThread;       //   ...
-        PVOID ResumeThread;        //   ...
-        PVOID OpenProcess;         //   ...
-        PVOID WaitForDebugEvent;   //   ...
-        PVOID ContinueDebugEvent;  //   ...
-        PVOID DebugActiveProcess;  //   ...
-        PVOID StopDebugging;       //   ...
-        PVOID StopRegisterChange;  //   ...
-        PVOID VirtualProtect;      //   ...
-        PVOID VirtualProtectEx;    //   ...
-        PVOID VirtualQueryEx;      //   ...
-        PVOID VirtualAllocEx;      //   ...
-        PVOID CreateRemoteThread;  //   ...
-        PVOID OpenThread;          //   ...
-        PVOID GetPEProcess;        //   ...
-        PVOID GetPEThread;         //   ...
-        PVOID GetThreadsProcessOffset;      //   ...
-        PVOID GetThreadListEntryOffset;     //   ...
-        PVOID GetProcessnameOffset;         //   ...
-        PVOID GetDebugportOffset;           //   ...
-        PVOID GetPhysicalAddress;           //   ...
-        PVOID ProtectMe;                    //   ...
-        PVOID GetCR4;                       //   ...
-        PVOID GetCR3;                       //   ...
-        PVOID SetCR3;                       //   ...
-        PVOID GetSDT;                       //   ...
-        PVOID GetSDTShadow;                 //   ...
-        PVOID setAlternateDebugMethod;      //   ...
-        PVOID getAlternateDebugMethod;      //   ...
-        PVOID DebugProcess;                 //   ...
-        PVOID ChangeRegOnBP;                //   ...
-        PVOID RetrieveDebugData;            //   ...
-        PVOID StartProcessWatch;            //   ...
-        PVOID WaitForProcessListData;       //   ...
-        PVOID GetProcessNameFromID;         //   ...
-        PVOID GetProcessNameFromPEProcess;  //   ...
-        PVOID KernelOpenProcess;            //   ...
-        PVOID KernelReadProcessMemory;      //   ...
-        PVOID KernelWriteProcessMemory;     //   ...
-        PVOID KernelVirtualAllocEx;         //   ...
-        PVOID IsValidHandle;                //   ...
-        PVOID GetIDTCurrentThread;          //   ...
-        PVOID GetIDTs;                      //   ...
-        PVOID MakeWritable;                 //   ...
-        PVOID GetLoadedState;               //   ...
-        PVOID DBKSuspendThread;             //   ...
-        PVOID DBKResumeThread;              //   ...
-        PVOID DBKSuspendProcess;            //   ...
-        PVOID DBKResumeProcess;             //   ...
-        PVOID KernelAlloc;                  //   ...
-        PVOID GetKProcAddress;              //   ...
-        PVOID CreateToolhelp32Snapshot;     //   ...
-        PVOID Process32First;               //   ...
-        PVOID Process32Next;                //   ...
-        PVOID Thread32First;                //   ...
-        PVOID Thread32Next;                 //   ...
-        PVOID Module32First;                //   ...
-        PVOID Module32Next;                 //   ...
-        PVOID Heap32ListFirst;              //   ...
-        PVOID Heap32ListNext;               //   ...
+        void* GetThreadContext;    //   ...
+        void* SetThreadContext;    //   ...
+        void* SuspendThread;       //   ...
+        void* ResumeThread;        //   ...
+        void* OpenProcess;         //   ...
+        void* WaitForDebugEvent;   //   ...
+        void* ContinueDebugEvent;  //   ...
+        void* DebugActiveProcess;  //   ...
+        void* StopDebugging;       //   ...
+        void* StopRegisterChange;  //   ...
+        void* VirtualProtect;      //   ...
+        void* VirtualProtectEx;    //   ...
+        void* VirtualQueryEx;      //   ...
+        void* VirtualAllocEx;      //   ...
+        void* CreateRemoteThread;  //   ...
+        void* OpenThread;          //   ...
+        void* GetPEProcess;        //   ...
+        void* GetPEThread;         //   ...
+        void* GetThreadsProcessOffset;      //   ...
+        void* GetThreadListEntryOffset;     //   ...
+        void* GetProcessnameOffset;         //   ...
+        void* GetDebugportOffset;           //   ...
+        void* GetPhysicalAddress;           //   ...
+        void* ProtectMe;                    //   ...
+        void* GetCR4;                       //   ...
+        void* GetCR3;                       //   ...
+        void* SetCR3;                       //   ...
+        void* GetSDT;                       //   ...
+        void* GetSDTShadow;                 //   ...
+        void* setAlternateDebugMethod;      //   ...
+        void* getAlternateDebugMethod;      //   ...
+        void* DebugProcess;                 //   ...
+        void* ChangeRegOnBP;                //   ...
+        void* RetrieveDebugData;            //   ...
+        void* StartProcessWatch;            //   ...
+        void* WaitForProcessListData;       //   ...
+        void* GetProcessNameFromID;         //   ...
+        void* GetProcessNameFromPEProcess;  //   ...
+        void* KernelOpenProcess;            //   ...
+        void* KernelReadProcessMemory;      //   ...
+        void* KernelWriteProcessMemory;     //   ...
+        void* KernelVirtualAllocEx;         //   ...
+        void* IsValidHandle;                //   ...
+        void* GetIDTCurrentThread;          //   ...
+        void* GetIDTs;                      //   ...
+        void* MakeWritable;                 //   ...
+        void* GetLoadedState;               //   ...
+        void* DBKSuspendThread;             //   ...
+        void* DBKResumeThread;              //   ...
+        void* DBKSuspendProcess;            //   ...
+        void* DBKResumeProcess;             //   ...
+        void* KernelAlloc;                  //   ...
+        void* GetKProcAddress;              //   ...
+        void* CreateToolhelp32Snapshot;     //   ...
+        void* Process32First;               //   ...
+        void* Process32Next;                //   ...
+        void* Thread32First;                //   ...
+        void* Thread32Next;                 //   ...
+        void* Module32First;                //   ...
+        void* Module32Next;                 //   ...
+        void* Heap32ListFirst;              //   ...
+        void* Heap32ListNext;               //   ...
         //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         // advanced for delphi 7 enterprise dll programmers only
-        PVOID mainform;       // pointer to the Tmainform object.
-        PVOID memorybrowser;  // pointer to the TMemoryBrowser object (memory view windows), same as mainform
+        void* mainform;       // pointer to the Tmainform object.
+        void* memorybrowser;  // pointer to the TMemoryBrowser object (memory view windows), same as mainform
 
         // Plugin Version 2+
         CEP_NAMETOADDRESS         sym_nameToAddress;
@@ -481,15 +542,9 @@ namespace CheatEngine::SDK {
         CEP_SPEEDHACK_SETSPEED speedhack_setSpeed;
 
         // V5: Todo, implement function declarations
-        VOID*           ExecuteKernelCode;
-        VOID*           UserdefinedInterruptHook;
+        void*           ExecuteKernelCode;
+        void*           UserdefinedInterruptHook;
         CEP_GETLUASTATE GetLuaState;
-        VOID*           MainThreadCall;
-
-    } ExportedFunctions, *PExportedFunctions;
+        void*           MainThreadCall;
+    };
 }
-
-// BOOL __stdcall CEPlugin_GetVersion(PPluginVersion pv , int sizeofpluginversion);
-// BOOL __stdcall CEPlugin_InitializePlugin(PExportedFunctions ef , int pluginid);
-// BOOL __stdcall CEPlugin_DisablePlugin(void);
-// old versions without CEPlugin_ in front also work but are not recommended due to bugbrained compilers...
