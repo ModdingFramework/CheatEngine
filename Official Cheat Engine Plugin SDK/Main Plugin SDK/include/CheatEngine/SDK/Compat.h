@@ -39,6 +39,13 @@ namespace CheatEngine::SDK::Compat {
 
     // 2 = OnDebugEvent
 
+    using CEP_PLUGINTYPE2        = OnDebugEventCallback;
+    using _PLUGINTYPE2_INIT      = OnDebugEventPluginInit;
+    using PLUGINTYPE2_INIT       = OnDebugEventPluginInit;
+    using DEBUGEVENTPLUGIN_INIT  = OnDebugEventPluginInit;
+    using PPLUGINTYPE2_INIT      = OnDebugEventPluginInit*;
+    using PDEBUGEVENTPLUGIN_INIT = OnDebugEventPluginInit*;
+
     // 3 = ProcessWatcherEvent
 
     // 4 = FunctionPointerChange

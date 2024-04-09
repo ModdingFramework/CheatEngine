@@ -38,15 +38,16 @@
 
 #pragma once
 
-// TODO: remove:
-#include <windows.h>
-
 #include <cstdint>
 
 #ifdef CHEATENGINE_USE_LUA
     #include "lauxlib.h"  // IWYU pragma: keep
     #include "lua.h"      // IWYU pragma: keep
     #include "lualib.h"   // IWYU pragma: keep
+#endif
+
+#ifdef CHEATENGINE_INCLUDE_WINDOWS
+    #include <windows.h>
 #endif
 
 #define CESDK_VERSION 6
@@ -117,6 +118,16 @@ namespace CheatEngine::SDK {
 
     // 2 = OnDebugEvent
 
+#ifdef CHEATENGINE_INCLUDE_WINDOWS
+    using OnDebugEventCallback = int(__stdcall*)(LPDEBUG_EVENT DebugEvent);
+#else
+    using OnDebugEventCallback = int(__stdcall*)(void* DebugEvent);
+#endif
+
+    struct OnDebugEventPluginInit {
+        OnDebugEventCallback callback;  // pointer to a callback routine of the type 2 plugin
+    };
+
     // 3 = ProcessWatcherEvent
 
     // 4 = FunctionPointerChange
@@ -131,23 +142,18 @@ namespace CheatEngine::SDK {
 
     ///
 
-    typedef int(__stdcall* CEP_PLUGINTYPE2)(LPDEBUG_EVENT DebugEvent);
-    typedef void(__stdcall* CEP_PLUGINTYPE3)(ULONG processid, ULONG peprocess, int Created);
+    typedef void(__stdcall* CEP_PLUGINTYPE3)(std::uint32_t processid, std::uint32_t peprocess, int Created);
     typedef void(__stdcall* CEP_PLUGINTYPE4)(int reserved);
     typedef void(__stdcall* CEP_PLUGINTYPE5)(void);
     typedef int(__stdcall* CEP_PLUGINTYPE6ONPOPUP)(std::uintptr_t selectedAddress, char** addressofname, int* show);
     typedef int(__stdcall* CEP_PLUGINTYPE6)(std::uintptr_t* selectedAddress);
     typedef void(__stdcall* CEP_PLUGINTYPE7)(
         std::uintptr_t address, char** addressStringPointer, char** bytestringpointer, char** opcodestringpointer,
-        char** specialstringpointer, ULONG* textcolor
+        char** specialstringpointer, std::uint32_t* textcolor
     );
     typedef void(__stdcall* CEP_PLUGINTYPE8)(char** line, AutoAssemblerPhase phase, int id);
 
     /////
-
-    typedef struct _PLUGINTYPE2_INIT {
-        CEP_PLUGINTYPE2 callback;  // pointer to a callback routine of the type 2 plugin
-    } PLUGINTYPE2_INIT, DEBUGEVENTPLUGIN_INIT, *PPLUGINTYPE2_INIT, *PDEBUGEVENTPLUGIN_INIT;
 
     typedef struct _PLUGINTYPE3_INIT {
         CEP_PLUGINTYPE3 callback;  // pointer to a callback routine of the type 3 plugin
@@ -240,10 +246,10 @@ namespace CheatEngine::SDK {
     typedef void(__stdcall* CEP_SHOWMESSAGE)(char* message);
     typedef int(__stdcall* CEP_REGISTERFUNCTION)(int pluginid, PluginType functiontype, void* init);
     typedef int(__stdcall* CEP_UNREGISTERFUNCTION)(int pluginid, int functionid);
-    typedef HANDLE(__stdcall* CEP_GETMAINWINDOWHANDLE)(void);
+    typedef void*(__stdcall* CEP_GETMAINWINDOWHANDLE)(void);
     typedef int(__stdcall* CEP_AUTOASSEMBLE)(char* script);
     typedef int(__stdcall* CEP_ASSEMBLER)(
-        std::uintptr_t address, char* instruction, BYTE* output, int maxlength, int* returnedsize
+        std::uintptr_t address, char* instruction, std::uint8_t* output, int maxlength, int* returnedsize
     );
     typedef int(__stdcall* CEP_DISASSEMBLER)(std::uintptr_t address, char* output, int maxsize);
     typedef int(__stdcall* CEP_CHANGEREGATADDRESS)(std::uintptr_t address, PREGISTERMODIFICATIONINFO changereg);
@@ -274,7 +280,7 @@ namespace CheatEngine::SDK {
     typedef void*(__stdcall* CEP_CREATETABLEENTRY)(void);
     typedef void*(__stdcall* CEP_GETTABLEENTRY)(char* description);
     typedef int(__stdcall* CEP_MEMREC_SETDESCRIPTION)(void* memrec, char* description);
-    typedef PCHAR(__stdcall* CEP_MEMREC_GETDESCRIPTION)(void* memrec);
+    typedef const char*(__stdcall* CEP_MEMREC_GETDESCRIPTION)(void* memrec);
     typedef int(__stdcall* CEP_MEMREC_GETADDRESS)(
         void* memrec, std::uintptr_t* address, std::uint32_t* offsets, int maxoffsets, int* neededOffsets
     );
@@ -346,6 +352,7 @@ namespace CheatEngine::SDK {
 
     typedef int(__stdcall* CEP_MESSAGEDIALOG)(char* massage, int messagetype, int buttoncombination);
     typedef int(__stdcall* CEP_SPEEDHACK_SETSPEED)(float speed);
+
 #ifdef CHEATENGINE_USE_LUA
     typedef lua_State*(__fastcall* CEP_GETLUASTATE)();
 #else
@@ -353,7 +360,7 @@ namespace CheatEngine::SDK {
 #endif
 
     typedef int(__stdcall** CEP_READPROCESSMEMORY)(
-        HANDLE hProcess, const void* lpBaseAddress, void* lpBuffer, SIZE_T nSize, SIZE_T* lpNumberOfBytesRead
+        void* hProcess, const void* lpBaseAddress, void* lpBuffer, size_t nSize, size_t* lpNumberOfBytesRead
     );
 
     /*
@@ -366,8 +373,8 @@ namespace CheatEngine::SDK {
         CEP_SHOWMESSAGE        ShowMessage;          // Pointer to the ce showmessage function
         CEP_REGISTERFUNCTION   RegisterFunction;     // Use this to register a specific type of plugin
         CEP_UNREGISTERFUNCTION UnregisterFunction;   // unregisters a function registered with registerfunction
-        PULONG                 OpenedProcessID;      // pointer to the currently selected processid
-        PHANDLE                OpenedProcessHandle;  // pointer to the currently selected processhandle
+        std::uint32_t*         OpenedProcessID;      // pointer to the currently selected processid
+        void**                 OpenedProcessHandle;  // pointer to the currently selected processhandle
 
         CEP_GETMAINWINDOWHANDLE
         GetMainWindowHandle;                  // returns the handle of the main window (for whatever reason, it is
