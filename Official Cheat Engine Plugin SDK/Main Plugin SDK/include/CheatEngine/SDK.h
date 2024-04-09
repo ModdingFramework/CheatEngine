@@ -493,9 +493,3 @@ namespace CheatEngine::SDK {
 // BOOL __stdcall CEPlugin_InitializePlugin(PExportedFunctions ef , int pluginid);
 // BOOL __stdcall CEPlugin_DisablePlugin(void);
 // old versions without CEPlugin_ in front also work but are not recommended due to bugbrained compilers...
-
-#define CheatEnginePlugin_GetVersion \
-    int __stdcall CEPlugin_GetVersion(CheatEngine::SDK::PPluginVersion cePluginVersion, int ceSizeOfPluginVersion)
-#define CheatEnginePlugin_InitializePlugin \
-    int __stdcall CEPlugin_InitializePlugin(CheatEngine::SDK::PExportedFunctions ceExportedFunctions, int cePluginId)
-#define CheatEnginePlugin_DisablePlugin int __stdcall CEPlugin_DisablePlugin(void)
