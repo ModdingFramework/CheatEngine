@@ -42,9 +42,9 @@
     #include <windows.h>
 #endif
 
-#define CESDK_VERSION 6
-
 namespace CheatEngine::SDK {
+
+    inline int SDK_VERSION = 6;
 
     enum class PluginType {
         AddressList,

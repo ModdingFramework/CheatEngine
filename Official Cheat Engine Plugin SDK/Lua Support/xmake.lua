@@ -1,0 +1,5 @@
+target("Official Cheat Engine Plugin SDK - Lua Support")
+  set_kind("headeronly")
+  add_includedirs("include", { public = true })
+  add_linkdirs("lib", { public = true })
+  add_links("lua53-x64", { public = true })
