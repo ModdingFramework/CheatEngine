@@ -1,7 +1,5 @@
 #pragma once
 
-#include <_Log_.h>
-
 #include <functional>
 #include <optional>
 #include <string>
@@ -69,7 +67,6 @@ namespace CheatEngine::Plugin {
             _onPluginDisableCallbacks.push_back(callback);
         }
         bool Initialize() {
-            _Log_("CheatEnginePlugin::Initialize");
             if (_status != Status::Uninitialized) return false;
             for (auto& callback : _pluginInitCallbacks)
                 if (!callback()) return false;
@@ -78,7 +75,6 @@ namespace CheatEngine::Plugin {
             return true;
         }
         bool Enable() {
-            _Log_("CheatEnginePlugin::Enable");
             if (_status != Status::Initialized) return false;
             for (auto& callback : _pluginEnableCallbacks)
                 if (!callback()) return false;
@@ -87,7 +83,6 @@ namespace CheatEngine::Plugin {
             return true;
         }
         bool Disable() {
-            _Log_("CheatEnginePlugin::Disable");
             if (_status != Status::Enabled) return false;
             for (auto& callback : _pluginDisableCallbacks)
                 if (!callback()) return false;
