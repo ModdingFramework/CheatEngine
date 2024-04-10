@@ -25,15 +25,7 @@
     For clarity in the SDK.h, types such as `PLUGINTYPE0_RECORD` have been replaced
     with `AddressListRecord` to make it more readable and C++-like.
 
-    Original type names have been preserved in the CheatEngine::SDK::Compat namespace.
-
-    To use the original type names:
-    - #include <CheatEngine/SDK/Compat.h>
-    - using namespace CheatEngine::SDK::Compat;
-
-    Note: `char*` have been converted to `const char*` so Compat is not 100% compatible.
-
-    If you want the original SDK.h, you can #include <CheatEngine/SDK/Official.h>
+    If you want the original C SDK.h, you can #include <CheatEngine/SDK/Official/v6.h>
 */
 
 #pragma once
@@ -66,7 +58,7 @@ namespace CheatEngine::SDK {
         AutoAssembler
     };
 
-    typedef enum { aaInitialize = 0, aaPhase1 = 1, aaPhase2 = 2, aaFinalize = 3 } AutoAssemblerPhase;
+    enum class AutoAssemblerPhase { Initialize = 0, Phase1 = 1, Phase2 = 2, Finalize = 3 };
 
     struct PluginVersion {
         unsigned int version;  // write here the minimum version this dll is compatible with (Current supported version:
@@ -75,16 +67,20 @@ namespace CheatEngine::SDK {
                                  // dll, not stack)
     };
 
+    enum class AddressListRecordType { Byte, Word, DWord, Float, Double, Bit, Int64, String };
+
     struct AddressListRecord {
-        char*          interpretedaddress;  // pointer to a 255 bytes long string (0 terminated)
+        char*          interpretedAddress;  // pointer to a 255 bytes long string (0 terminated)
         std::uintptr_t address;    // this is a read-only representaion of the address. Change interpretedaddress if you
                                    // want to change this
-        int            ispointer;  // readonly
-        int            countoffsets;  // readonly
+        int            isPointer;  // readonly
+        int            countOffsets;  // readonly
         std::uint32_t* offsets;       // array of dwords ranging from 0 to countoffsets-1 (readonly)
         char*          description;   // pointer to a 255 bytes long string
-        char           valuetype;     // 0=byte, 1=word, 2=dword, 3=float, 4=double, 5=bit, 6=int64, 7=string
+        char           valueTypeId;   // 0=byte, 1=word, 2=dword, 3=float, 4=double, 5=bit, 6=int64, 7=string
         char           size;          // stringlength or bitlength;
+
+        AddressListRecordType ValueType() const { return static_cast<AddressListRecordType>(valueTypeId); }
     };
 
     /* Registered Function Types */
@@ -188,8 +184,8 @@ namespace CheatEngine::SDK {
     //////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////
 
-    typedef struct _REGISTERMODIFICATIONINFO {
-        std::uintptr_t address;  // addres to break on
+    struct RegisterModificationInfo {
+        std::uintptr_t address;  // address to break on
         int            change_eax;
         int            change_ebx;
         int            change_ecx;
@@ -241,129 +237,133 @@ namespace CheatEngine::SDK {
         int new_zf;
         int new_sf;
         int new_of;
-    } REGISTERMODIFICATIONINFO, *PREGISTERMODIFICATIONINFO;
+    };
 
-    // the __stdcall stuff isn't really needed since I've set compiler options to force stdcall, but this makes it clear
-    // that stdcall is used to the reader
-    typedef void(__stdcall* CEP_SHOWMESSAGE)(char* message);
-    typedef int(__stdcall* CEP_REGISTERFUNCTION)(int pluginid, PluginType functiontype, void* init);
-    typedef int(__stdcall* CEP_UNREGISTERFUNCTION)(int pluginid, int functionid);
-    typedef void*(__stdcall* CEP_GETMAINWINDOWHANDLE)(void);
-    typedef int(__stdcall* CEP_AUTOASSEMBLE)(char* script);
-    typedef int(__stdcall* CEP_ASSEMBLER)(
-        std::uintptr_t address, char* instruction, std::uint8_t* output, int maxlength, int* returnedsize
-    );
-    typedef int(__stdcall* CEP_DISASSEMBLER)(std::uintptr_t address, char* output, int maxsize);
-    typedef int(__stdcall* CEP_CHANGEREGATADDRESS)(std::uintptr_t address, PREGISTERMODIFICATIONINFO changereg);
-    typedef int(__stdcall* CEP_INJECTDLL)(char* dllname, char* functiontocall);
-    typedef int(__stdcall* CEP_FREEZEMEM)(std::uintptr_t address, int size);
-    typedef int(__stdcall* CEP_UNFREEZEMEM)(int freezeID);
-    typedef int(__stdcall* CEP_FIXMEM)(void);
-    typedef int(__stdcall* CEP_PROCESSLIST)(char* listbuffer, int listsize);
-    typedef int(__stdcall* CEP_RELOADSETTINGS)(void);
-    typedef std::uintptr_t(__stdcall* CEP_GETADDRESSFROMPOINTER)(
-        std::uintptr_t baseaddress, int offsetcount, int* offsets
-    );
-    typedef int(__stdcall* CEP_GENERATEAPIHOOKSCRIPT)(
-        char* address, char* addresstojumpto, char* addresstogetnewcalladdress, char* script, int maxscriptsize
-    );
-    typedef int(__stdcall* CEP_ADDRESSTONAME)(std::uintptr_t address, char* name, int maxnamesize);
-    typedef int(__stdcall* CEP_NAMETOADDRESS)(char* name, std::uintptr_t* address);
+    namespace ExportedFunctionSignatures {
+        typedef void(__stdcall* ShowMessage)(const char* message);
+        typedef int(__stdcall* RegisterFunction)(int pluginid, PluginType functiontype, void* init);
+        typedef int(__stdcall* UnregisterFunction)(int pluginid, int functionid);
+        typedef void*(__stdcall* GetMainWindowHandle)(void);
+        typedef int(__stdcall* AutoAssemble)(const char* script);
+        typedef int(__stdcall* Assembler)(
+            std::uintptr_t address, const char* instruction, std::uint8_t* output, int maxlength, int* returnedsize
+        );
+        typedef int(__stdcall* Dissassembler)(std::uintptr_t address, const char* output, int maxsize);
+        typedef int(__stdcall* ChangeRegistersAtAddress)(std::uintptr_t address, RegisterModificationInfo* changereg);
+        typedef int(__stdcall* InjectDLL)(const char* pathToDLL, const char* functionToCall);
+        typedef int(__stdcall* FreezeMem)(std::uintptr_t address, int size);
+        typedef int(__stdcall* UnfreezeMem)(int freezeID);
+        typedef int(__stdcall* FixMem)(void);
+        typedef int(__stdcall* ProcessList)(char* listbuffer, int listsize);
+        typedef int(__stdcall* ReloadSettings)(void);
+        typedef std::uintptr_t(__stdcall* GetAddressFromPointer)(
+            std::uintptr_t baseaddress, int offsetcount, int* offsets
+        );
+        typedef int(__stdcall* GenerateAPIHookScript)(
+            const char* address, const char* addresstojumpto, const char* addresstogetnewcalladdress,
+            const char* script, int maxscriptsize
+        );
+        typedef int(__stdcall* AddressToName)(std::uintptr_t address, const char* name, int maxnamesize);
+        typedef int(__stdcall* NameToAddress)(const char* name, std::uintptr_t* address);
 
-    typedef void(__stdcall* CEP_LOADDBK32)(void);
-    typedef int(__stdcall* CEP_LOADDBVMIFNEEDED)(void);
-    typedef std::uint32_t(__stdcall* CEP_PREVIOUSOPCODE)(std::uintptr_t address);
-    typedef std::uint32_t(__stdcall* CEP_NEXTOPCODE)(std::uintptr_t address);
-    typedef int(__stdcall* CEP_LOADMODULE)(char* modulepath, char* exportlist, int* maxsize);
-    typedef int(__stdcall* CEP_DISASSEMBLEEX)(std::uintptr_t address, char* output, int maxsize);
-    typedef void(__stdcall* CEP_AA_ADDCOMMAND)(char* command);
-    typedef void(__stdcall* CEP_AA_DELCOMMAND)(char* command);
+        typedef void(__stdcall* LoadDBK32)(void);
+        typedef int(__stdcall* LoadDBVMIfNeeded)(void);
+        typedef std::uint32_t(__stdcall* PreviousOpCode)(std::uintptr_t address);
+        typedef std::uint32_t(__stdcall* NextOpCode)(std::uintptr_t address);
+        typedef int(__stdcall* LoadModule)(const char* modulepath, char* exportlist, int* maxsize);
+        typedef int(__stdcall* CEP_DISASSEMBLEEX)(std::uintptr_t address, char* output, int maxsize);
+        typedef void(__stdcall* CEP_AA_ADDCOMMAND)(const char* command);
+        typedef void(__stdcall* CEP_AA_DELCOMMAND)(const char* command);
 
-    typedef void*(__stdcall* CEP_CREATETABLEENTRY)(void);
-    typedef void*(__stdcall* CEP_GETTABLEENTRY)(char* description);
-    typedef int(__stdcall* CEP_MEMREC_SETDESCRIPTION)(void* memrec, char* description);
-    typedef const char*(__stdcall* CEP_MEMREC_GETDESCRIPTION)(void* memrec);
-    typedef int(__stdcall* CEP_MEMREC_GETADDRESS)(
-        void* memrec, std::uintptr_t* address, std::uint32_t* offsets, int maxoffsets, int* neededOffsets
-    );
-    typedef int(__stdcall* CEP_MEMREC_SETADDRESS)(void* memrec, char* address, std::uint32_t* offsets, int offsetcount);
-    typedef int(__stdcall* CEP_MEMREC_GETTYPE)(void* memrec);
-    typedef int(__stdcall* CEP_MEMREC_SETTYPE)(void* memrec, int vtype);
-    typedef int(__stdcall* CEP_MEMREC_GETVALUETYPE)(void* memrec, char* value, int maxsize);
-    typedef int(__stdcall* CEP_MEMREC_SETVALUETYPE)(void* memrec, char* value);
-    typedef char*(__stdcall* CEP_MEMREC_GETSCRIPT)(void* memrec);
-    typedef int(__stdcall* CEP_MEMREC_SETSCRIPT)(void* memrec, char* script);
-    typedef int(__stdcall* CEP_MEMREC_ISFROZEN)(void* memrec);
-    typedef int(__stdcall* CEP_MEMREC_FREEZE)(void* memrec, int direction);
-    typedef int(__stdcall* CEP_MEMREC_UNFREEZE)(void* memrec);
-    typedef int(__stdcall* CEP_MEMREC_SETCOLOR)(void* memrec, std::uint32_t color);
-    typedef int(__stdcall* CEP_MEMREC_APPENDTOENTRY)(void* memrec1, void* memrec2);
-    typedef int(__stdcall* CEP_MEMREC_DELETE)(void* memrec);
+        typedef void*(__stdcall* CreateTableEntry)(void);
+        typedef void*(__stdcall* GetTableEntry)(const char* description);
 
-    typedef std::uint32_t(__stdcall* CEP_GETPROCESSIDFROMPROCESSNAME)(char* name);
-    typedef std::uint32_t(__stdcall* CEP_OPENPROCESS)(std::uint32_t pid);
-    typedef std::uint32_t(__stdcall* CEP_DEBUGPROCESS)(int debuggerinterface);
-    typedef void(__stdcall* CEP_PAUSE)(void);
-    typedef void(__stdcall* CEP_UNPAUSE)(void);
-    typedef int(__stdcall* CEP_DEBUG_SETBREAKPOINT)(std::uintptr_t address, int size, int trigger);
-    typedef int(__stdcall* CEP_DEBUG_REMOVEBREAKPOINT)(std::uintptr_t address);
-    typedef int(__stdcall* CEP_DEBUG_CONTINUEFROMBREAKPOINT)(int continueoption);
+        typedef int(__stdcall* MemoryRecord_SetDescription)(void* memrec, const char* description);
+        typedef const char*(__stdcall* MemoryRecord_GetDescription)(void* memrec);
+        typedef int(__stdcall* MemoryRecord_GetAddress)(
+            void* memrec, std::uintptr_t* address, std::uint32_t* offsets, int maxoffsets, int* neededOffsets
+        );
+        typedef int(__stdcall* MemoryRecord_SetAddress)(
+            void* memrec, char* address, std::uint32_t* offsets, int offsetcount
+        );
+        typedef int(__stdcall* MemoryRecord_GetType)(void* memrec);
+        typedef int(__stdcall* MemoryRecord_SetType)(void* memrec, int vtype);
+        typedef int(__stdcall* MemoryRecord_GetValueType)(void* memrec, const char* value, int maxsize);
+        typedef int(__stdcall* MemoryRecord_SetValueType)(void* memrec, const char* value);
+        typedef char*(__stdcall* MemoryRecord_GetScript)(void* memrec);
+        typedef int(__stdcall* MemoryRecord_SetScript)(void* memrec, const char* script);
+        typedef int(__stdcall* MemoryRecord_IsFrozen)(void* memrec);
+        typedef int(__stdcall* MemoryRecord_Freeze)(void* memrec, int direction);
+        typedef int(__stdcall* MemoryRecord_Unfreeze)(void* memrec);
+        typedef int(__stdcall* MemoryRecord_SetColor)(void* memrec, std::uint32_t color);
+        typedef int(__stdcall* MemoryRecord_AppendToEntry)(void* memrec1, void* memrec2);
+        typedef int(__stdcall* MemoryRecord_Delete)(void* memrec);
 
-    typedef void(__stdcall* CEP_CLOSECE)(void);
-    typedef void(__stdcall* CEP_HIDEALLCEWINDOWS)(void);
-    typedef void(__stdcall* CEP_UNHIDEMAINCEWINDOW)(void);
+        typedef std::uint32_t(__stdcall* GetProcessIdFromProcessName)(const char* name);
+        typedef std::uint32_t(__stdcall* OpenProcess)(std::uint32_t pid);
+        typedef std::uint32_t(__stdcall* DebugProcess)(int debuggerinterface);
+        typedef void(__stdcall* Pause)(void);
+        typedef void(__stdcall* Unpause)(void);
+        typedef int(__stdcall* SetBreakpoint)(std::uintptr_t address, int size, int trigger);
+        typedef int(__stdcall* RemoveBreakpoint)(std::uintptr_t address);
+        typedef int(__stdcall* ContinueFromBreakpoint)(int continueoption);
 
-    typedef void*(__stdcall* CEP_CREATEFORM)(void);
-    typedef void(__stdcall* CEP_FORM_CENTERSCREEN)(void* form);
-    typedef void(__stdcall* CEP_FORM_HIDE)(void* form);
-    typedef void(__stdcall* CEP_FORM_SHOW)(void* form);
-    typedef void(__stdcall* CEP_FORM_ONCLOSE)(void* form, void* function);
+        typedef void(__stdcall* CloseCheatEngine)(void);
+        typedef void(__stdcall* HideAllCheatEngineWindows)(void);
+        typedef void(__stdcall* UnhideMainCheatEngineWindow)(void);
 
-    typedef void*(__stdcall* CEP_CREATEPANEL)(void* owner);
-    typedef void*(__stdcall* CEP_CREATEGROUPBOX)(void* owner);
-    typedef void*(__stdcall* CEP_CREATEBUTTON)(void* owner);
-    typedef void*(__stdcall* CEP_CREATEIMAGE)(void* owner);
+        typedef void*(__stdcall* CreateForm)(void);
+        typedef void(__stdcall* CenterFormOnScreen)(void* form);
+        typedef void(__stdcall* HideForm)(void* form);
+        typedef void(__stdcall* ShowForm)(void* form);
+        typedef void(__stdcall* OnFormClose)(void* form, void* function);
 
-    typedef int(__stdcall* CEP_IMAGE_LOADIMAGEFROMFILE)(void* image, char* filename);
-    typedef void(__stdcall* CEP_IMAGE_TRANSPARENT)(void* image, int transparent);
-    typedef void(__stdcall* CEP_IMAGE_STRETCH)(void* image, int stretch);
+        typedef void*(__stdcall* CreatePanel)(void* owner);
+        typedef void*(__stdcall* CreateGroupBox)(void* owner);
+        typedef void*(__stdcall* CreateButton)(void* owner);
+        typedef void*(__stdcall* CreateImage)(void* owner);
 
-    typedef void*(__stdcall* CEP_CREATELABEL)(void* owner);
-    typedef void*(__stdcall* CEP_CREATEEDIT)(void* owner);
-    typedef void*(__stdcall* CEP_CREATEMEMO)(void* owner);
-    typedef void*(__stdcall* CEP_CREATETIMER)(void* owner);
+        typedef int(__stdcall* LoadImageFromFile)(void* image, const char* filename);
+        typedef void(__stdcall* SetImageTransparent)(void* image, int transparent);
+        typedef void(__stdcall* SetImageStretch)(void* image, int stretch);
 
-    typedef void(__stdcall* CEP_TIMER_SETINTERVAL)(void* timer, int interval);
-    typedef void(__stdcall* CEP_TIMER_ONTIMER)(void* timer, void* function);
+        typedef void*(__stdcall* CreateLabel)(void* owner);
+        typedef void*(__stdcall* CreateEdit)(void* owner);
+        typedef void*(__stdcall* CreateMemo)(void* owner);
+        typedef void*(__stdcall* CreateTimer)(void* owner);
 
-    typedef void(__stdcall* CEP_CONTROL_SETCAPTION)(void* control, char* caption);
-    typedef int(__stdcall* CEP_CONTROL_GETCAPTION)(void* control, char* caption, int maxsize);
+        typedef void(__stdcall* SetTimerInterval)(void* timer, int interval);
+        typedef void(__stdcall* OnTimer)(void* timer, void* function);
 
-    typedef void(__stdcall* CEP_CONTROL_SETPOSITION)(void* control, int x, int y);
-    typedef int(__stdcall* CEP_CONTROL_GETX)(void* control);
-    typedef int(__stdcall* CEP_CONTROL_GETY)(void* control);
+        typedef void(__stdcall* SetControlCaption)(void* control, const char* caption);
+        typedef int(__stdcall* GetControlCaption)(void* control, const char* caption, int maxsize);
 
-    typedef void(__stdcall* CEP_CONTROL_SETSIZE)(void* control, int width, int height);
-    typedef int(__stdcall* CEP_CONTROL_GETWIDTH)(void* control);
-    typedef int(__stdcall* CEP_CONTROL_GETHEIGHT)(void* control);
+        typedef void(__stdcall* SetControlPosition)(void* control, int x, int y);
+        typedef int(__stdcall* GetControlX)(void* control);
+        typedef int(__stdcall* GetControlY)(void* control);
 
-    typedef void(__stdcall* CEP_CONTROL_SETALIGN)(void* control, int align);
-    typedef void(__stdcall* CEP_CONTROL_ONCLICK)(void* control, void* function);
+        typedef void(__stdcall* SetControlSize)(void* control, int width, int height);
+        typedef int(__stdcall* GetControlWidth)(void* control);
+        typedef int(__stdcall* GetControlHeight)(void* control);
 
-    typedef void(__stdcall* CEP_OBJECT_DESTROY)(void* object);
+        typedef void(__stdcall* SetControlAlign)(void* control, int align);
+        typedef void(__stdcall* SetControlOnClickFunction)(void* control, void* function);
 
-    typedef int(__stdcall* CEP_MESSAGEDIALOG)(char* massage, int messagetype, int buttoncombination);
-    typedef int(__stdcall* CEP_SPEEDHACK_SETSPEED)(float speed);
+        typedef void(__stdcall* DestroyObject)(void* object);
+
+        typedef int(__stdcall* MessageDialog)(const char* massage, int messagetype, int buttoncombination);
+        typedef int(__stdcall* SpeecHackSetSpeed)(float speed);
 
 #ifdef CHEATENGINE_USE_LUA
-    typedef lua_State*(__fastcall* CEP_GETLUASTATE)();
+        typedef lua_State*(__fastcall* GetLuaState)();
 #else
-    typedef void*(__fastcall* CEP_GETLUASTATE)();
+        typedef void*(__fastcall* GetLuaState)();
 #endif
 
-    typedef int(__stdcall** CEP_READPROCESSMEMORY)(
-        void* hProcess, const void* lpBaseAddress, void* lpBuffer, size_t nSize, size_t* lpNumberOfBytesRead
-    );
+        typedef int(__stdcall** ReadProcessMemory)(
+            void* hProcess, const void* lpBaseAddress, void* lpBuffer, size_t nSize, size_t* lpNumberOfBytesRead
+        );
+    }
 
     /*
     function ce_messageDialog(message: pchar; messagetype: integer; buttoncombination: integer): integer; stdcall;
@@ -371,32 +371,39 @@ namespace CheatEngine::SDK {
     */
 
     struct ExportedFunctions {
-        int                    sizeofExportedFunctions;
-        CEP_SHOWMESSAGE        ShowMessage;          // Pointer to the ce showmessage function
-        CEP_REGISTERFUNCTION   RegisterFunction;     // Use this to register a specific type of plugin
-        CEP_UNREGISTERFUNCTION UnregisterFunction;   // unregisters a function registered with registerfunction
-        std::uint32_t*         OpenedProcessID;      // pointer to the currently selected processid
-        void**                 OpenedProcessHandle;  // pointer to the currently selected processhandle
+        int _sizeOfExportedFunctions;
 
-        CEP_GETMAINWINDOWHANDLE
-        GetMainWindowHandle;                  // returns the handle of the main window (for whatever reason, it is
-                                              // recommended to use delphi to make a real userinterface upgrade)
-        CEP_AUTOASSEMBLE       AutoAssemble;  // Pointer to the AutoAssemble function
-        CEP_ASSEMBLER          Assembler;     // pointer to the assembler function
-        CEP_DISASSEMBLER       Disassembler;  // pointer to the disassembler function
-        CEP_CHANGEREGATADDRESS ChangeRegistersAtAddress;  // pointer to the ChangeRegAtBP function
-        CEP_INJECTDLL          InjectDLL;                 // pointer to ce's Inject DLL function
-        CEP_FREEZEMEM          FreezeMem;                 // pointer to the FreezeMem routine
-        CEP_UNFREEZEMEM    UnfreezeMem;  // pointer to the UnfreezeMem routine (use this to undo freezes with FreezeMem)
-        CEP_FIXMEM         FixMem;       // pointer to the fixmem routine
-        CEP_PROCESSLIST    ProcessList;  // pointer to the processlist routine
-        CEP_RELOADSETTINGS ReloadSettings;                // pointer to the ReloadSettings routine
-        CEP_GETADDRESSFROMPOINTER GetAddressFromPointer;  // pointer to the GetAddressFromPointer routine
+        ExportedFunctionSignatures::ShowMessage ShowMessage;  // Pointer to the ce showmessage function
+        ExportedFunctionSignatures::RegisterFunction
+            RegisterFunction;  // Use this to register a specific type of plugin
+        ExportedFunctionSignatures::UnregisterFunction
+                       UnregisterFunction;   // unregisters a function registered with registerfunction
+        std::uint32_t* OpenedProcessID;      // pointer to the currently selected processid
+        void**         OpenedProcessHandle;  // pointer to the currently selected processhandle
+
+        ExportedFunctionSignatures::GetMainWindowHandle
+            GetMainWindowHandle;  // returns the handle of the main window (for whatever reason, it is
+                                  // recommended to use delphi to make a real userinterface upgrade)
+        ExportedFunctionSignatures::AutoAssemble  AutoAssemble;  // Pointer to the AutoAssemble function
+        ExportedFunctionSignatures::Assembler     Assembler;     // pointer to the assembler function
+        ExportedFunctionSignatures::Dissassembler Disassembler;  // pointer to the disassembler function
+        ExportedFunctionSignatures::ChangeRegistersAtAddress
+                                              ChangeRegistersAtAddress;  // pointer to the ChangeRegAtBP function
+        ExportedFunctionSignatures::InjectDLL InjectDLL;                 // pointer to ce's Inject DLL function
+        ExportedFunctionSignatures::FreezeMem FreezeMem;                 // pointer to the FreezeMem routine
+        ExportedFunctionSignatures::UnfreezeMem
+            UnfreezeMem;  // pointer to the UnfreezeMem routine (use this to undo freezes with FreezeMem)
+        ExportedFunctionSignatures::FixMem         FixMem;          // pointer to the fixmem routine
+        ExportedFunctionSignatures::ProcessList    ProcessList;     // pointer to the processlist routine
+        ExportedFunctionSignatures::ReloadSettings ReloadSettings;  // pointer to the ReloadSettings routine
+        ExportedFunctionSignatures::GetAddressFromPointer
+            GetAddressFromPointer;  // pointer to the GetAddressFromPointer routine
 
         // pointers to the address that contains the pointers to the functions
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        CEP_READPROCESSMEMORY ReadProcessMemory;  // pointer to the pointer of ReadProcessMemory (Change it to hook that
-                                                  // api, or use it yourself)
+        ExportedFunctionSignatures::ReadProcessMemory
+            ReadProcessMemory;     // pointer to the pointer of ReadProcessMemory (Change it to hook that
+                                   // api, or use it yourself)
         void* WriteProcessMemory;  // pointer to the pointer of WriteProcessMemory (Change it to hook that api, or use
                                    // it yourself)
         void* GetThreadContext;    //   ...
@@ -464,96 +471,96 @@ namespace CheatEngine::SDK {
         //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         // advanced for delphi 7 enterprise dll programmers only
-        void* mainform;       // pointer to the Tmainform object.
-        void* memorybrowser;  // pointer to the TMemoryBrowser object (memory view windows), same as mainform
+        void* MainForm;           // pointer to the Tmainform object.
+        void* MemoryBrowserForm;  // pointer to the TMemoryBrowser object (memory view windows), same as mainform
 
         // Plugin Version 2+
-        CEP_NAMETOADDRESS         sym_nameToAddress;
-        CEP_ADDRESSTONAME         sym_addressToName;
-        CEP_GENERATEAPIHOOKSCRIPT sym_generateAPIHookScript;
+        ExportedFunctionSignatures::NameToAddress         NameToAddress;
+        ExportedFunctionSignatures::AddressToName         AddressToName;
+        ExportedFunctionSignatures::GenerateAPIHookScript GenerateAPIHookScript;
 
         // Plugin version 3+
-        CEP_LOADDBK32        loadDBK32;
-        CEP_LOADDBVMIFNEEDED loaddbvmifneeded;
-        CEP_PREVIOUSOPCODE   previousOpcode;
-        CEP_NEXTOPCODE       nextOpcode;
-        CEP_DISASSEMBLEEX    disassembleEx;
-        CEP_LOADMODULE       loadModule;
-        CEP_AA_ADDCOMMAND    aa_AddExtraCommand;
-        CEP_AA_DELCOMMAND    aa_RemoveExtraCommand;
+        ExportedFunctionSignatures::LoadDBK32         LoadDBK32;
+        ExportedFunctionSignatures::LoadDBVMIfNeeded  LoadDBVMIfneeded;
+        ExportedFunctionSignatures::PreviousOpCode    PreviousOpcode;
+        ExportedFunctionSignatures::NextOpCode        NextOpcode;
+        ExportedFunctionSignatures::CEP_DISASSEMBLEEX DisassembleEx;
+        ExportedFunctionSignatures::LoadModule        LoadModule;
+        ExportedFunctionSignatures::CEP_AA_ADDCOMMAND aa_AddExtraCommand;
+        ExportedFunctionSignatures::CEP_AA_DELCOMMAND aa_RemoveExtraCommand;
 
         // version 4 extension
-        CEP_CREATETABLEENTRY      createTableEntry;
-        CEP_GETTABLEENTRY         getTableEntry;
-        CEP_MEMREC_SETDESCRIPTION memrec_setDescription;
-        CEP_MEMREC_GETDESCRIPTION memrec_getDescription;
-        CEP_MEMREC_GETADDRESS     memrec_getAddress;
-        CEP_MEMREC_SETADDRESS     memrec_setAddress;
-        CEP_MEMREC_GETTYPE        memrec_getType;
-        CEP_MEMREC_SETTYPE        memrec_setType;
-        CEP_MEMREC_GETVALUETYPE   memrec_getValue;
-        CEP_MEMREC_SETVALUETYPE   memrec_setValue;
-        CEP_MEMREC_GETSCRIPT      memrec_getScript;
-        CEP_MEMREC_SETSCRIPT      memrec_setScript;
-        CEP_MEMREC_ISFROZEN       memrec_isfrozen;
-        CEP_MEMREC_FREEZE         memrec_freeze;
-        CEP_MEMREC_UNFREEZE       memrec_unfreeze;
-        CEP_MEMREC_SETCOLOR       memrec_setColor;
-        CEP_MEMREC_APPENDTOENTRY  memrec_appendtoentry;
-        CEP_MEMREC_DELETE         memrec_delete;
+        ExportedFunctionSignatures::CreateTableEntry            CreateTableEntry;
+        ExportedFunctionSignatures::GetTableEntry               GetTableEntry;
+        ExportedFunctionSignatures::MemoryRecord_SetDescription MemoryRecord_SetDescription;
+        ExportedFunctionSignatures::MemoryRecord_GetDescription MemoryRecord_GetDescription;
+        ExportedFunctionSignatures::MemoryRecord_GetAddress     MemoryRecord_GetAddress;
+        ExportedFunctionSignatures::MemoryRecord_SetAddress     MemoryRecord_SetAddress;
+        ExportedFunctionSignatures::MemoryRecord_GetType        MemoryRecord_GetType;
+        ExportedFunctionSignatures::MemoryRecord_SetType        MemoryRecord_SetType;
+        ExportedFunctionSignatures::MemoryRecord_GetValueType   MemoryRecord_GetValue;
+        ExportedFunctionSignatures::MemoryRecord_SetValueType   MemoryRecord_SetValue;
+        ExportedFunctionSignatures::MemoryRecord_GetScript      MemoryRecord_GetScript;
+        ExportedFunctionSignatures::MemoryRecord_SetScript      MemoryRecord_SetScript;
+        ExportedFunctionSignatures::MemoryRecord_IsFrozen       MemoryRecord_Isfrozen;
+        ExportedFunctionSignatures::MemoryRecord_Freeze         MemoryRecord_Freeze;
+        ExportedFunctionSignatures::MemoryRecord_Unfreeze       MemoryRecord_Unfreeze;
+        ExportedFunctionSignatures::MemoryRecord_SetColor       MemoryRecord_SetColor;
+        ExportedFunctionSignatures::MemoryRecord_AppendToEntry  MemoryRecord_Appendtoentry;
+        ExportedFunctionSignatures::MemoryRecord_Delete         MemoryRecord_Delete;
 
-        CEP_GETPROCESSIDFROMPROCESSNAME getProcessIDFromProcessName;
-        CEP_OPENPROCESS                 openProcessEx;
-        CEP_DEBUGPROCESS                debugProcessEx;
-        CEP_PAUSE                       pause;
-        CEP_UNPAUSE                     unpause;
+        ExportedFunctionSignatures::GetProcessIdFromProcessName GetProcessIDFromProcessName;
+        ExportedFunctionSignatures::OpenProcess                 OpenProcessEx;
+        ExportedFunctionSignatures::DebugProcess                DebugProcessEx;
+        ExportedFunctionSignatures::Pause                       Pause;
+        ExportedFunctionSignatures::Unpause                     Unpause;
 
-        CEP_DEBUG_SETBREAKPOINT          debug_setBreakpoint;
-        CEP_DEBUG_REMOVEBREAKPOINT       debug_removeBreakpoint;
-        CEP_DEBUG_CONTINUEFROMBREAKPOINT debug_continueFromBreakpoint;
+        ExportedFunctionSignatures::SetBreakpoint          SetBreakpoint;
+        ExportedFunctionSignatures::RemoveBreakpoint       RemoveBreakpoint;
+        ExportedFunctionSignatures::ContinueFromBreakpoint ContinueFromBreakpoint;
 
-        CEP_CLOSECE            closeCE;
-        CEP_HIDEALLCEWINDOWS   hideAllCEWindows;
-        CEP_UNHIDEMAINCEWINDOW unhideMainCEwindow;
-        CEP_CREATEFORM         createForm;
-        CEP_FORM_CENTERSCREEN  form_centerScreen;
-        CEP_FORM_HIDE          form_hide;
-        CEP_FORM_SHOW          form_show;
-        CEP_FORM_ONCLOSE       form_onClose;
+        ExportedFunctionSignatures::CloseCheatEngine            CloseCheatEngine;
+        ExportedFunctionSignatures::HideAllCheatEngineWindows   HideAllCheatEngineWindows;
+        ExportedFunctionSignatures::UnhideMainCheatEngineWindow UnhideMainCheatEngineWindow;
+        ExportedFunctionSignatures::CreateForm                  CreateForm;
+        ExportedFunctionSignatures::CenterFormOnScreen          CenterFormOnScreen;
+        ExportedFunctionSignatures::HideForm                    HideForm;
+        ExportedFunctionSignatures::ShowForm                    ShowForm;
+        ExportedFunctionSignatures::OnFormClose                 OnFormClose;
 
-        CEP_CREATEPANEL             createPanel;
-        CEP_CREATEGROUPBOX          createGroupBox;
-        CEP_CREATEBUTTON            createButton;
-        CEP_CREATEIMAGE             createImage;
-        CEP_IMAGE_LOADIMAGEFROMFILE image_loadImageFromFile;
-        CEP_IMAGE_TRANSPARENT       image_transparent;
-        CEP_IMAGE_STRETCH           image_stretch;
+        ExportedFunctionSignatures::CreatePanel         CreatePanel;
+        ExportedFunctionSignatures::CreateGroupBox      CreateGroupBox;
+        ExportedFunctionSignatures::CreateButton        CreateButton;
+        ExportedFunctionSignatures::CreateImage         CreateImage;
+        ExportedFunctionSignatures::LoadImageFromFile   LoadImageFromFile;
+        ExportedFunctionSignatures::SetImageTransparent SetImageTransparent;
+        ExportedFunctionSignatures::SetImageStretch     SetImageStretch;
 
-        CEP_CREATELABEL         createLabel;
-        CEP_CREATEEDIT          createEdit;
-        CEP_CREATEMEMO          createMemo;
-        CEP_CREATETIMER         createTimer;
-        CEP_TIMER_SETINTERVAL   timer_setInterval;
-        CEP_TIMER_ONTIMER       timer_onTimer;
-        CEP_CONTROL_SETCAPTION  control_setCaption;
-        CEP_CONTROL_GETCAPTION  control_getCaption;
-        CEP_CONTROL_SETPOSITION control_setPosition;
-        CEP_CONTROL_GETX        control_getX;
-        CEP_CONTROL_GETY        control_getY;
-        CEP_CONTROL_SETSIZE     control_setSize;
-        CEP_CONTROL_GETWIDTH    control_getWidth;
-        CEP_CONTROL_GETHEIGHT   control_getHeight;
-        CEP_CONTROL_SETALIGN    control_setAlign;
-        CEP_CONTROL_ONCLICK     control_onClick;
+        ExportedFunctionSignatures::CreateLabel               CreateLabel;
+        ExportedFunctionSignatures::CreateEdit                CreateEdit;
+        ExportedFunctionSignatures::CreateMemo                CreateMemo;
+        ExportedFunctionSignatures::CreateTimer               CreateTimer;
+        ExportedFunctionSignatures::SetTimerInterval          SetTimerInterval;
+        ExportedFunctionSignatures::OnTimer                   OnTimer;
+        ExportedFunctionSignatures::SetControlCaption         SetControlCaption;
+        ExportedFunctionSignatures::GetControlCaption         GetControlCaption;
+        ExportedFunctionSignatures::SetControlPosition        SetControlPosition;
+        ExportedFunctionSignatures::GetControlX               GetControlX;
+        ExportedFunctionSignatures::GetControlY               GetControlY;
+        ExportedFunctionSignatures::SetControlSize            SetControlSize;
+        ExportedFunctionSignatures::GetControlWidth           GetControlWidth;
+        ExportedFunctionSignatures::GetControlHeight          GetControlHeight;
+        ExportedFunctionSignatures::SetControlAlign           SetControlAlign;
+        ExportedFunctionSignatures::SetControlOnClickFunction OnClickControl;
 
-        CEP_OBJECT_DESTROY     object_destroy;
-        CEP_MESSAGEDIALOG      messageDialog;
-        CEP_SPEEDHACK_SETSPEED speedhack_setSpeed;
+        ExportedFunctionSignatures::DestroyObject     DestroyObject;
+        ExportedFunctionSignatures::MessageDialog     MessageDialog;
+        ExportedFunctionSignatures::SpeecHackSetSpeed SpeedHackSetSpeed;
 
         // V5: Todo, implement function declarations
-        void*           ExecuteKernelCode;
-        void*           UserdefinedInterruptHook;
-        CEP_GETLUASTATE GetLuaState;
-        void*           MainThreadCall;
+        void*                                   ExecuteKernelCode;
+        void*                                   UserdefinedInterruptHook;
+        ExportedFunctionSignatures::GetLuaState GetLuaState;
+        void*                                   MainThreadCall;
     };
 }
