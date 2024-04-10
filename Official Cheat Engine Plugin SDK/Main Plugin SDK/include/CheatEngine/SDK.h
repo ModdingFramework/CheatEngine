@@ -52,11 +52,6 @@
 
 #define CESDK_VERSION 6
 
-// typedef unsigned long long std::uintptr_t
-// int - int
-// void* - void*
-// std::uint32_t and ULONG - unsigned long
-
 namespace CheatEngine::SDK {
 
     enum class PluginType {
@@ -96,95 +91,102 @@ namespace CheatEngine::SDK {
 
     // 0 = AddressList
 
-    using AddressListCallback = int(__stdcall*)(AddressListRecord* selectedRecord);
+    using AddressListPluginCallback = int(__stdcall*)(AddressListRecord* selectedRecord);
 
     struct AddressListPluginInit {
-        char*               name;      // 0 terminated string describing the name for the user's menu item
-        AddressListCallback callback;  // pointer to a callback routine of the type 0 plugin
+        const char*               name;      // 0 terminated string describing the name for the user's menu item
+        AddressListPluginCallback callback;  // pointer to a callback routine of the type 0 plugin
     };
 
     // 1 = MemoryView
 
-    using MemoryViewCallback = int(__stdcall*)(
+    using MemoryViewPluginCallback = int(__stdcall*)(
         std::uintptr_t* disassemblerAddress, std::uintptr_t* selectedDisassemblerAddress, std::uintptr_t* hexviewAddress
     );
 
     struct MemoryViewPluginInit {
-        char*              name;      // 0 terminated string describing the name for the user's menu item
-        MemoryViewCallback callback;  // pointer to a callback routine of the type 1 plugin
-        char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to parse it
-                         // to a valid shortcut
+        const char*              name;      // 0 terminated string describing the name for the user's menu item
+        MemoryViewPluginCallback callback;  // pointer to a callback routine of the type 1 plugin
+        const char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to
+                               // parse it to a valid shortcut
     };
 
     // 2 = OnDebugEvent
 
 #ifdef CHEATENGINE_INCLUDE_WINDOWS
-    using OnDebugEventCallback = int(__stdcall*)(LPDEBUG_EVENT DebugEvent);
+    using OnDebugEventPluginCallback = int(__stdcall*)(LPDEBUG_EVENT DebugEvent);
 #else
-    using OnDebugEventCallback = int(__stdcall*)(void* DebugEvent);
+    using OnDebugEventPluginCallback = int(__stdcall*)(void* DebugEvent);
 #endif
 
     struct OnDebugEventPluginInit {
-        OnDebugEventCallback callback;  // pointer to a callback routine of the type 2 plugin
+        OnDebugEventPluginCallback callback;  // pointer to a callback routine of the type 2 plugin
     };
 
     // 3 = ProcessWatcherEvent
 
+    using ProcessWatcherEventPluginCallback =
+        void(__stdcall*)(std::uint32_t processid, std::uint32_t peprocess, int Created);
+
+    struct ProcessWatcherEventPluginInit {
+        ProcessWatcherEventPluginCallback callback;  // pointer to a callback routine of the type 3 plugin
+    };
+
     // 4 = FunctionPointerChange
+
+    using FunctionPointerChangePluginCallback = void(__stdcall*)(int reserved);
+
+    struct FunctionPointerChangePluginInit {
+        FunctionPointerChangePluginCallback callback;  // pointer to a callback routine of the type 4 plugin
+    };
 
     // 5 = MainMenu
 
+    using MainMenuPluginCallback = void(__stdcall*)(void);
+
+    struct MainMenuPluginInit {
+        const char*            name;  // 0 terminated string describing the name for the user's menu item
+        MainMenuPluginCallback callback;
+        const char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to
+                               // parse it to a valid shortcut
+    };
+
     // 6 = DisassemblerContext
+
+    using DisassemblerContextPluginCallback = int(__stdcall*)(std::uintptr_t* selectedAddress);
+    using DisassemblerContextPluginOnPopupCallback =
+        int(__stdcall*)(std::uintptr_t selectedAddress, char** addressofname, int* show);
+
+    struct DisassemblerContextPluginInit {
+        const char*                       name;  // 0 terminated string describing the name for the user's menu item
+        DisassemblerContextPluginCallback callback;
+        DisassemblerContextPluginOnPopupCallback callbackOnPopup;
+        const char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to
+                               // parse it to a valid shortcut
+    };
 
     // 7 = DisassemblerRenderLine
 
+    using DisassemblerRenderLinePluginCallback = void(__stdcall*)(
+        std::uintptr_t address, char** addressStringPointer, char** byteStringPointer, char** opCodeStringPointer,
+        char** specialStringpointer, std::uint32_t* textcolor
+    );
+
+    struct DisassemblerRenderLinePluginInit {
+        DisassemblerRenderLinePluginCallback callback;  // pointer to a callback routine of the type 7 plugin
+    };
+
     // 8 = AutoAssembler
 
-    ///
+    using AutoAssemblerPluginCallback = void(__stdcall*)(char** line, AutoAssemblerPhase phase, int id);
 
-    typedef void(__stdcall* CEP_PLUGINTYPE3)(std::uint32_t processid, std::uint32_t peprocess, int Created);
-    typedef void(__stdcall* CEP_PLUGINTYPE4)(int reserved);
-    typedef void(__stdcall* CEP_PLUGINTYPE5)(void);
-    typedef int(__stdcall* CEP_PLUGINTYPE6ONPOPUP)(std::uintptr_t selectedAddress, char** addressofname, int* show);
-    typedef int(__stdcall* CEP_PLUGINTYPE6)(std::uintptr_t* selectedAddress);
-    typedef void(__stdcall* CEP_PLUGINTYPE7)(
-        std::uintptr_t address, char** addressStringPointer, char** bytestringpointer, char** opcodestringpointer,
-        char** specialstringpointer, std::uint32_t* textcolor
-    );
-    typedef void(__stdcall* CEP_PLUGINTYPE8)(char** line, AutoAssemblerPhase phase, int id);
+    struct AutoAssemblerPluginInit {
+        AutoAssemblerPluginCallback callback;  // pointer to a callback routine of the type 8 plugin
+    };
 
-    /////
-
-    typedef struct _PLUGINTYPE3_INIT {
-        CEP_PLUGINTYPE3 callback;  // pointer to a callback routine of the type 3 plugin
-    } PLUGINTYPE3_INIT, PROCESSWATCHERPLUGIN_INIT, *PPLUGINTYPE3_INIT, *PPROCESSWATCHERPLUGIN_INIT;
-
-    typedef struct _PLUGINTYPE4_INIT {
-        CEP_PLUGINTYPE4 callback;  // pointer to a callback routine of the type 4 plugin
-    } PLUGINTYPE4_INIT, POINTERREASSIGNMENTPLUGIN_INIT, *PPLUGINTYPE4_INIT, *PPOINTERREASSIGNMENTPLUGIN_INIT;
-
-    typedef struct _PLUGINTYPE5_INIT {
-        char*           name;  // 0 terminated string describing the name for the user's menu item
-        CEP_PLUGINTYPE5 callback;
-        char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to parse it
-                         // to a valid shortcut
-    } PLUGINTYPE5_INIT, MAINMENUPLUGIN_INIT, *PPLUGINTYPE5_INIT, *PMAINMENUPLUGIN_INIT;
-
-    typedef struct _PLUGINTYPE6_INIT {
-        char*                  name;  // 0 terminated string describing the name for the user's menu item
-        CEP_PLUGINTYPE6        callback;
-        CEP_PLUGINTYPE6ONPOPUP callbackOnPopup;
-        char* shortcut;  // 0 terminated string containing the shortcut in textform. CE will try it's best to parse it
-                         // to a valid shortcut
-    } PLUGINTYPE6_INIT, DISASSEMBLERCONTEXT_INIT, *PPLUGINTYPE6_INIT, *PDISASSEMBLERCONTEXT_INIT;
-
-    typedef struct _PLUGINTYPE7_INIT {
-        CEP_PLUGINTYPE7 callback;  // pointer to a callback routine of the type 7 plugin
-    } PLUGINTYPE7_INIT, DISASSEMBLERLINEPLUGIN_INIT, *PPLUGINTYPE7_INIT, *PDISASSEMBLERLINEPLUGIN_INIT;
-
-    typedef struct _PLUGINTYPE8_INIT {
-        CEP_PLUGINTYPE8 callback;  // pointer to a callback routine of the type 8 plugin
-    } PLUGINTYPE8_INIT, AUTOASSEMBLERPLUGIN_INIT, *PPLUGINTYPE8_INIT, *PAUTOASSEMBLERPLUGIN_INIT;
+    //////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////
 
     typedef struct _REGISTERMODIFICATIONINFO {
         std::uintptr_t address;  // addres to break on
