@@ -239,6 +239,25 @@ namespace CheatEngine::SDK {
         int new_of;
     };
 
+    enum class MessageDialogTypes { Warning, Error, Information, Confirmation };
+
+    enum class MessageDialogButtonTypes {
+        Yes,
+        No,
+        OK,
+        Cancel,
+        Abort,
+        Retry,
+        Ignore,
+        All,
+        NoToAll,
+        YesToAll,
+        Help,
+        Close
+    };
+
+    enum class MessageDialogResultTypes { None, OK, Cancel, Abort, Retry, Ignore, Yes, No, All, NoToAll, YesToAll };
+
     namespace ExportedFunctionSignatures {
         typedef void(__stdcall* ShowMessage)(const char* message);
         typedef int(__stdcall* RegisterFunction)(int pluginid, PluginType functiontype, void* init);
@@ -351,7 +370,9 @@ namespace CheatEngine::SDK {
 
         typedef void(__stdcall* DestroyObject)(void* object);
 
-        typedef int(__stdcall* MessageDialog)(const char* massage, int messagetype, int buttoncombination);
+        typedef int(__stdcall* MessageDialog)(
+            const char* message, MessageDialogTypes messagetype, int buttonCombination
+        );
         typedef int(__stdcall* SpeecHackSetSpeed)(float speed);
 
 #ifdef CHEATENGINE_USE_LUA

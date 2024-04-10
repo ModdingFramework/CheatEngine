@@ -7,7 +7,7 @@
 
 namespace CheatEngine::Plugin::Exports {
 
-    SDK::ExportedFunctions* exportedFunctions = nullptr;
+    inline SDK::ExportedFunctions* ExportedCheatEngineFunctions = nullptr;
 
     extern "C" int __declspec(dllexport) CEPlugin_GetVersion(CheatEngine::SDK::PluginVersion* pluginVersion, int) {
         _Log_("CEPlugin_GetVersion");
@@ -22,7 +22,7 @@ namespace CheatEngine::Plugin::Exports {
         _Log_("CEPlugin_InitializePlugin");
         auto& plugin = CheatEngine::Plugin::GetPlugin();
         plugin.SetPluginId(pluginId);
-        Exports::exportedFunctions = exportedFunctions;
+        ExportedCheatEngineFunctions = exportedFunctions;
         return plugin.Enable();
     }
 
