@@ -1,18 +1,15 @@
-#include <_Log_.h>
-_LogToFile_("C:/Temp/CEPlugin_Example_UsingPluginLibraryWithLua.log");
-
-//
-
 #include <CheatEngine/Plugin.h>
-// ...
 
-CEPlugin("My Plugin Name");
+#include <memory>
+#include <sol/sol.hpp>
 
-CEPlugin_OnInit { _Log_("CEPlugin_OnInit"); }
+using namespace std;
+
+unique_ptr<sol::state_view> _luaState;
+
+void CallThisFunctionFromLua() { _luaState->get<sol::function>("print")("Hello from C++!"); }
 
 CEPlugin_OnEnable {
-    CE::ShowMessage("Hello!");
-    _Log_("CEPlugin_Enable");
+    _luaState = make_unique<sol::state_view>(GetCheatEngineFunctions()->GetLuaState());
+    _luaState->set_function("CallThisFunctionFromLua", CallThisFunctionFromLua);
 }
-
-CEPlugin_OnDisable { _Log_("CEPlugin_Disable"); }

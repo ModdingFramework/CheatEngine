@@ -6,4 +6,3 @@ add_repositories("ModdingFramework https://github.com/ModdingFramework/Packages.
 
 includes("Official Cheat Engine Plugin SDK/*/xmake.lua")
 includes("Plugin Helper Library/xmake.lua")
-includes("Examples/**/xmake.lua")
